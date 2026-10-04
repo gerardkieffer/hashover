@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+    <channel>
+        <title>{{ t('rss.title', {page: thread and thread.title ? thread.title : page.url}) }}</title>
+        <link>{{ page.url }}</link>
+        <description>{{ tp('count.comments', comments|length) }}</description>
+        <language>{{ language }}</language>
+        <atom:link href="{{ self_url }}" rel="self" type="application/rss+xml"/>
+        {% for comment in comments %}
+            <item>
+                <title>{{ t('rss.item', {name: author(comment)}) }}</title>
+                <link>{{ page.url }}#{{ comment.anchor() }}</link>
+                <guid isPermaLink="true">{{ page.url }}#{{ comment.anchor() }}</guid>
+                <pubDate>{{ comment.createdAt|date('D, d M Y H:i:s O') }}</pubDate>
+                <description>{{ comment|comment_html_source }}</description>
+            </item>
+        {% endfor %}
+    </channel>
+</rss>

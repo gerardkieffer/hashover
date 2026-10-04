@@ -1,5 +1,7 @@
 # HashOver 1.0.3 — Security audit and PHP 8.4 port
 
+> **Historical document.** This audit covers HashOver 1.0.x, which has since been replaced by the HashOver 2 rewrite. The current security design is described in [SECURITY.md](SECURITY.md).
+
 Audit date: 2026-10-04. Base: `jacobwb/hashover` @ `19bdf11` (HashOver 1.0.3rc4).
 Branch: `php84-security-hardening`.
 

@@ -1,0 +1,82 @@
+{#
+ # One comment and, in threaded order, its replies.
+ # Variables: node (CommentNode), popular (bool: copy shown in "Most popular")
+ #}
+{% set comment = node.comment %}
+{% set id = comment.anchor() ~ (popular ? '-popular' : '') %}
+{% if comment.deleted %}
+    <article class="hashover-comment hashover-deleted" id="{{ id }}" tabindex="-1">
+        <p>{{ t('comment.deleted') }}</p>
+    </article>
+{% else %}
+    {% set name = author(comment) %}
+    <article class="hashover-comment" id="{{ id }}" tabindex="-1" aria-labelledby="{{ id }}-author">
+        <header class="hashover-comment-header">
+            <img class="hashover-avatar" src="{{ avatar(comment) }}" alt="" width="48" height="48" loading="lazy" decoding="async">
+            <p class="hashover-author" id="{{ id }}-author">
+                {%- if comment.website -%}
+                    <a href="{{ comment.website }}" rel="nofollow ugc noopener">{{ name }}</a>
+                {%- else -%}
+                    {{ name }}
+                {%- endif -%}
+            </p>
+            <p class="hashover-meta">
+                <a href="#{{ comment.anchor() }}" class="hashover-permalink"><time datetime="{{ comment.createdAt|date_iso }}" title="{{ comment.createdAt|date_full }}">{{ comment.createdAt|date_display }}</time></a>
+                {%- if comment.updatedAt %} <span class="hashover-edited">· {{ t('comment.edited') }}</span>{% endif %}
+                {%- if node.parent and (popular or not sort.isNested()) %}
+                    · <a href="#{{ node.parent.anchor() }}">{{ node.parent.deleted ? t('comment.in_reply_to_deleted') : t('comment.in_reply_to', {name: author(node.parent)}) }}</a>
+                {%- endif %}
+            </p>
+        </header>
+
+        <div class="hashover-body">{{ comment|comment_html }}</div>
+
+        <footer class="hashover-actions">
+            <span class="hashover-likes" id="{{ id }}-likes">{% if comment.likes > 0 %}{{ tp('comment.likes', comment.likes) }}{% endif %}</span>
+
+            {% if not popular %}
+                {% if node.likeable %}
+                    <form method="post" action="{{ endpoint }}" class="hashover-like-form" data-hashover-form>
+                        {% include '_hidden.html.twig' %}
+                        <input type="hidden" name="action" value="like">
+                        <input type="hidden" name="id" value="{{ comment.id }}">
+                        <button type="submit" class="hashover-like" aria-pressed="{{ node.liked ? 'true' : 'false' }}" aria-describedby="{{ id }}-likes">
+                            {{- t('comment.like') }}<span class="hashover-sr-only"> {{ t('comment.by', {name: name}) }}</span>
+                        </button>
+                    </form>
+                {% endif %}
+
+                <a href="{{ page.urlWith({hashover_reply: comment.id}, id ~ '-slot') }}" class="hashover-reply"
+                    data-hashover-open="reply" data-hashover-id="{{ comment.id }}" aria-controls="{{ id }}-slot">
+                    {{- t('comment.reply') }}<span class="hashover-sr-only"> {{ t('comment.to', {name: name}) }}</span>
+                </a>
+
+                {% if node.editable %}
+                    <a href="{{ page.urlWith({hashover_edit: comment.id}, id ~ '-slot') }}" class="hashover-edit"
+                        data-hashover-open="edit" data-hashover-id="{{ comment.id }}" aria-controls="{{ id }}-slot">
+                        {{- t('comment.edit') }}<span class="hashover-sr-only"> {{ t('comment.by', {name: name}) }}</span>
+                    </a>
+                {% endif %}
+            {% endif %}
+        </footer>
+
+        {% if not popular %}
+            <div class="hashover-slot" id="{{ id }}-slot">
+                {%- if reply_to and reply_to.id == comment.id -%}
+                    {% include '_form.html.twig' with {kind: 'reply', target: comment, form_id: 'hashover-form-' ~ comment.id} %}
+                {%- elseif deleting and deleting.id == comment.id -%}
+                    {% include '_form.html.twig' with {kind: 'delete', target: comment, form_id: 'hashover-form-' ~ comment.id} %}
+                {%- elseif editing and editing.id == comment.id -%}
+                    {% include '_form.html.twig' with {kind: 'edit', target: comment, form_id: 'hashover-form-' ~ comment.id} %}
+                {%- endif -%}
+            </div>
+        {% endif %}
+    </article>
+{% endif %}
+{% if not popular and node.replies is not empty %}
+    <ol class="hashover-list hashover-replies">
+        {% for reply in node.replies %}
+            <li>{% include '_comment.html.twig' with {node: reply, popular: false} %}</li>
+        {% endfor %}
+    </ol>
+{% endif %}

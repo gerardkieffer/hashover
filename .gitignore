@@ -1,4 +1,7 @@
+vendor/
+.phpunit.cache/
+.php-cs-fixer.cache
 .DS_Store
-pages/*
-!pages/.gitkeep
-!pages/.htaccess
+/config/config.php
+/data/*
+!/data/.htaccess

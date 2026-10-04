@@ -1,235 +1,165 @@
-HashOver 1.0.3rc4
-========
-**HashOver** is a PHP comment system intended as a replacement for services like Disqus. HashOver is free and open source software, under the [GNU Affero General Public License](http://www.gnu.org/licenses/agpl.html). HashOver adds a "comment section" to any website, by placing a few simple lines of JavaScript or PHP to the source code of any webpage. HashOver is a self-hosted system and allows completely anonymous comments to be posted, the only required information is the comment itself.
+HashOver 2
+==========
 
-Notice
+**HashOver** is a self-hosted comment system for PHP websites, a privacy-friendly alternative to services like Disqus. Visitors can comment anonymously: only the comment itself is required. HashOver is free software under the [GNU Affero General Public License](LICENSE).
+
+HashOver 2 is a complete rewrite of HashOver 1.0 (2014–2019), focused on security, accessibility and maintainability. It is not compatible with 1.x installations.
+
+Features
 ---
-This is the current stable version of HashOver, it is not actively developed, instead work on the next version is done on the "hashover-next" repository. Code contributions ("Pull Requests") to/of this repository that add new functionality will be rejected. Please submit issues, clone and commit changes to the following repository instead: https://github.com/jacobwb/hashover-next
 
-Notable Features
+- Threaded replies, likes, "most popular" comments, four sort orders
+- Editing and deleting own comments, from any browser, by logging in with the same name and password
+- An administrator who can edit and delete every comment
+- Limited formatting (`<b>`, `<i>`, `<code>`, lists, quotes…), automatic links, images shown on request
+- E-mail notifications for the site owner and for replies
+- RSS feed per page, comment counts for links
+- English, French, Spanish and Japanese
+- Works without JavaScript; with JavaScript, everything happens without reloading the page
+
+Security and privacy
 ---
-<table cellpadding="2" cellspacing="2" width="100%">
-	<tbody>
-		<tr>
-			<td width="39%">
-				<ul>
-					<li>Restricted use of HTML tags</li>
-					<li>Display externally hosted images</li>
-					<li>Five comment sorting methods</li>
-					<li>Multiple languages</li>
-					<li>Spam filtering</li>
-					<li>IP address blocking</li>
-					<li>Notification emails</li>
-				</ul>
-			</td>
-			<td width="33%">
-				<ul>
-					<li>Threaded replies</li>
-					<li>Avatar icons</li>
-					<li>Comment editing &amp; deletion</li>
-					<li>Comment RSS feeds</li>
-					<li>Likes</li>
-					<li>Popular comments</li>
-					<li>Comment layout templates</li>
-				</ul>
-			</td>
-			<td valign="top" width="28%">
-				<ul>
-					<li>Administration</li>
-					<li>Automatic URL links</li>
-					<li>Customizable HTML</li>
-					<li>Customizable CSS</li>
-					<li>Referrer checking</li>
-					<li>Permalinks</li>
-				</ul>
-			</td>
-		</tr>
-	</tbody>
-</table>
 
-Documentation
-===
+- Only the `public` directory is served; code, configuration and data stay private
+- All output escaped by default; comments are sanitized with the HTML5 parser and an allow-list
+- Passwords hashed with `password_hash()`; e-mail addresses encrypted (XSalsa20-Poly1305)
+- HttpOnly, SameSite cookies; CSRF tokens; same-origin checks; rate limiting; bot protection
+- Compatible with a strict Content-Security-Policy (no inline scripts, styles or event handlers)
+- Gravatar, storing IP addresses and stopforumspam.com are off by default; stored IP addresses are forgotten after a retention period
 
-**Requirements**
+See [SECURITY.md](SECURITY.md) for the details and how to report a vulnerability.
 
-PHP 8.1 or newer (developed and tested with PHP 8.4) with the `mbstring`, `SimpleXML` and `sodium` (or `openssl`) extensions.
+Accessibility
+---
 
-**Prerequisites**
+HashOver targets WCAG 2.1 level AA (RAWeb 1.1 / EN 301 549): every field has a visible label, errors are linked to their field, status messages are announced to screen readers, every action works with the keyboard, focus moves predictably, and the layout reflows down to 320 pixels wide. Automated testing with axe-core reports no violations. Colours are derived from your page's text colour; keep enough contrast if you customize them.
 
-There are two methods of using HashOver, both methods require doing the following first:
+Requirements
+---
 
-1. Download this file: https://github.com/jacobwb/hashover/archive/master.zip.
-2. Extract the files under "hashover-master" at or upload them to your website's document root.
-3. Give (chmod) all the files permissions "0644" (readable by all and writable by owner).
-4. Give directories and PHP files permissions "0755" (readable by all, writable by owner, executable by all).
-5. Give "hashover/pages" directory permission "0777" (readable, writable and executable by all).
+- PHP 8.4 or newer with the `dom`, `mbstring`, `pdo_sqlite` and `sodium` extensions (`intl` is optional, for localized dates)
+- [Composer](https://getcomposer.org/), or a release archive that includes the `vendor` directory
+- `mail()` configured on the server, if you want e-mail notifications
 
-> It is not recommended that permissions "0777" ever be used. For security reasons, the "hashover/pages" directory should be "given" (chown) to the user that the server is configured to execute PHP scripts as, for example "www-data". And then simply give the "hashover/pages" directory permissions "0755".**
+Installation
+---
 
-**Protect the data files**
+1. Put HashOver **outside** your website's document root, for example in `/srv/hashover`, and install the dependencies:
 
-The `hashover/pages` directory holds password hashes, encrypted e-mail addresses and (optionally) IP addresses. It must never be served to visitors. On Apache the included `.htaccess` files take care of this (they require `AllowOverride All`, or at least `AuthConfig Limit Options`). On nginx, add the equivalent rules to your server block:
+   ```
+   composer install --no-dev --optimize-autoloader
+   ```
 
-```
-location ~ ^/hashover/(pages|scripts)/ {
-        deny all;
-}
+2. Create the configuration, answering a few questions:
 
-location = /hashover/scripts/like.php {
-        # pass to PHP as usual, e.g.:
-        include fastcgi_params;
-        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-        fastcgi_pass unix:/run/php/php8.4-fpm.sock;
-}
+   ```
+   bin/hashover setup
+   bin/hashover check
+   ```
 
-location ~ ^/hashover/(blocklist\.txt|ignore_queries\.txt|template\.xml)$ {
-        deny all;
-}
-```
+   This writes `config/config.php` (readable only by you). Review it: every setting is explained there. Make sure the web server's PHP user can read it and can write to the `data` directory.
 
-**Required Setup**
+3. Serve the `public` directory as `/hashover/`:
 
-**The following actions are required before using HashOver.**
+   **Apache**
 
-Edit the file `hashover/scripts/secrets.php` and make the following changes.
-Set a UNIQUE random value for the `$encryption_key` variable, at least 8 characters, 32 recommended (`php -r 'echo bin2hex(random_bytes(16)), PHP_EOL;'`). Existing installations must keep their key, or stored e-mail addresses become unreadable.
-Set the `$notification_email` variable to any valid e-mail address.
-Set a UNIQUE value for the `$admin_nickname` variable.
-Set a UNIQUE value for the `$admin_password` variable. It may be a hash generated with `php -r 'echo password_hash("your password", PASSWORD_DEFAULT), PHP_EOL;'` instead of plain text.
+   ```
+   Alias /hashover /srv/hashover/public
+   <Directory /srv/hashover/public>
+       Require all granted
+   </Directory>
+   ```
 
-In `hashover/scripts/settings.php`, it is recommended to set `$domain` to your website's domain name (for example `'example.com'`) instead of trusting the HTTP Host header.
+   **nginx** (with PHP-FPM)
 
-**Logging in**
+   ```
+   location /hashover/ {
+       alias /srv/hashover/public/;
+       index index.php;
 
-Fill in the nickname and password fields and press the login button (or post a comment with a password). HashOver then sets an HttpOnly login cookie which lets you edit and delete your comments posted with the same nickname and password. Passwords are never stored in cookies. When the administrator's nickname and password are used, the cookie grants the right to edit and delete every comment. Nobody else may post using the administrator's nickname.
+       location ~ \.php$ {
+           include fastcgi_params;
+           fastcgi_param SCRIPT_FILENAME $request_filename;
+           fastcgi_pass unix:/run/php/php8.4-fpm.sock;
+       }
+   }
+   ```
 
-**Using HashOver**
+   **Shared hosting:** if you can only upload into the document root, upload the whole `hashover` directory; the included `.htaccess` files deny access to everything except `public`, and set `'base_url' => '/hashover/public/'` in the configuration. Check that `https://example.com/hashover/config/config.example.php` returns an error.
 
-Once the files have successfully been downloaded, extracted, proper permissions set, and setup, all you need to do is copy the code to one of the two following implementation methods and paste it into your webpage(s):
+   You may also keep the configuration elsewhere and point the `HASHOVER_CONFIG` environment variable to it.
 
-**JavaScript method (recommended)**
+Adding comments to a page
+---
 
-```
+**With JavaScript**, on any page (static HTML too):
+
+```html
+<link rel="stylesheet" href="/hashover/hashover.css">
+
 <div id="hashover"></div>
-<script type="text/javascript" src="/hashover/comments.php"></script>
-<noscript>You must have JavaScript enabled to use the comments.</noscript>
+<script type="module" src="/hashover/hashover.js"></script>
 ```
 
-**PHP method**
+HashOver uses the page's `<link rel="canonical">` (or its address) to find its comments. Set `data-hashover-url` on the `div` to choose another address. Query parameters listed in `ignored_query_parameters` (tracking parameters by default) don't create separate threads.
 
-```
-<?php $mode = 'php'; include('hashover/comments.php'); ?> 
-```
+**With PHP**, the comments are part of the page and work without JavaScript; include the script as well to enhance them:
 
-**Optional**
+```php
+<link rel="stylesheet" href="/hashover/hashover.css">
 
-The following JavaScript tag may be used with any or all of the following variables to disable specific input fields, by placing it before the `<script>` tag mentioned above:
-
-```
-<script type="text/javascript">
-        var rows="4";        // Sets "Comments" field height
-        var name_on="no";    // Disables "Name" field
-        var passwd_on="no";  // Disables "Password" field
-        var email_on="no";   // Disables "E-mail" field
-        var sites_on="no";   // Disables "Website" field
-</script>
+<?php require '/srv/hashover/embed.php'; echo HashOver\Embed::thread(title: 'Page title'); ?>
+<script type="module" src="/hashover/hashover.js"></script>
 ```
 
-In the file `hashover/scripts/php-mode.php` a list of variables nearly identical to the ones mentioned above will be found that allow specific input fields to be disabled.
+`HashOver\Embed::thread()` accepts the canonical `url` of the page and its `title` (used in e-mails and the RSS feed).
 
-You may set the "count_link" query to display only a comment count linking to a specified page's comments. For example the following code will display "9 Comments (11 counting replies)".
+**Comment counts**, for example in a list of articles (with the script loaded on the page):
 
-```
-<script src="/hashover/comments.php?count_link=http://tildehash.com/%3Farticle=firefoxs-inspector-tool-as-3d-modeler-seriously"></script>
-```
-
-Identify an HTML element as "cmtcount" `<span id="cmtcount"></span>` for example, and that element will display a comment count. This is useful in creating comment "widgets" / "buttons" that display the comment count and link to the comment section. The following code displays a link similar to the previous code:
-
-```
-<a href="#comments"><span id="cmtcount"></span> Comments</a>
+```html
+<a href="/blog/post#hashover"><span data-hashover-count="/blog/post">Comments</span></a>
 ```
 
-You may defer loading the comment's JavaScript with this code:
+Customizing
+---
+
+- **Look:** the stylesheet uses CSS custom properties (`--hashover-accent`, `--hashover-danger`, …) on `.hashover-thread`; override them in your own stylesheet. Fonts and text colour are inherited from your page.
+- **Markup:** copy files from `templates` to a directory of your own, edit them, and set `templates_directory`. Templates are [Twig](https://twig.symfony.com/) files and escape output automatically.
+- **Language and dates:** `language`, `timezone` and `relative_dates` in the configuration.
+
+Administration
+---
+
+Log in with the administrator name and password (the "Log in" button of the comment form) to edit or delete any comment. The administrator session lasts one day; "Log out" ends it. Nobody else can post with the administrator's name.
+
+Command-line tools:
 
 ```
-<div id="hashover"></div>
-<script type="text/javascript" src="/hashover/comments.php" defer="defer"></script>
+bin/hashover setup          # create the configuration
+bin/hashover check          # validate the configuration and the database
+bin/hashover hash-password  # hash a new administrator password
+bin/hashover purge-ips      # forget IP addresses older than the retention period
 ```
 
-Or load the comment's JavaScript asynchronously:
+Back up `data/hashover.sqlite` and `config/config.php`. Keep the `secret_key`: changing it logs everyone out and makes stored e-mail addresses unreadable.
+
+Development
+---
 
 ```
-<div id="hashover"></div>
-<script type="text/javascript">(function() { var s = document.createElement('script'), t = document.getElementsByTagName('script')[0]; s.type = 'text/javascript'; s.async = true; s.src = "/hashover/comments.php"; t.parentNode.insertBefore(s, t); })();</script>
+composer install
+composer check      # code style, static analysis and all tests
+composer test       # tests only
+composer cs-fix     # fix code style
 ```
 
-**Optional Settings**
+The test suite has unit tests, application tests that run requests in memory, and HTTP tests that run HashOver under PHP's built-in web server. Static analysis runs PHPStan at level 10 with strict rules; code follows PER Coding Style 2.0.
 
-In the file `hashover/scripts/settings.php` settings for things such as language, default name, HTML design template, avatar icons, "Popular Comments", spam checking, default timezone, and more may be adjusted. 
+Project layout: `src` (PHP classes), `templates` (Twig), `locales` (translations), `public` (web root), `config`, `data` (SQLite database), `bin` (command-line tool), `tests`.
 
-**Styling the Comments**
+License
+---
 
-To change how the comments look, use a [Cascading Style Sheet](http://en.wikipedia.org/wiki/Cascading_Style_Sheets)
-(CSS.) HashOver comes with a default style sheet named "comments.css" under the "hashover" directory.
+HashOver is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License, version 3 or later. If you modify HashOver on your website, offer its source code to your visitors; the "HashOver source code" link (`source_code_url`) does that.
 
-Using the JavaScript method this style sheet is automatically placed in the page when the comments are displayed. This is not true for the PHP method. However, in both methods it is recommended that the following `<link>` element be placed in the `<head>` element of your website's webpage(s):
-
-```
-<link href="/hashover/comments.css" rel="stylesheet" type="text/css">
-```
-
-Alternatively, the following may be placed at the top of an existing style sheet:
-
-```
-@import url('/hashover/comments.css');
-```
-
-**Need more control over how the comments look?**
-
-Editing the file `hashover/html-templates/default.html` allows you to move around the HTML elements of each comment, meaning you may change where each commenter's avatar icon and name appears, as well as where the date/permalinks, "Reply", "Edit", "Like" and "Top of Thread" links appear.
-
-However, rather than editing the `hashover/html-templates/default.html` file, it is recommended you edit a copy of that file, and then merely change the `$template` variable in the `hashover/scripts/settings.php` file. This way your changes won't be lost when you upgrade HashOver, and you will have a working fallback just in case.
-
-**HTML in comments**
-
-Users may post comments with a limited number of allowed HTML tags. These tags include `<b>`, `<u>`, `<i>`, `<s>`, `<pre>`, `<code>`, `<ul>`, `<ol>`, `<li>`, and `<blockquote>`. A user may also include an image in their posts using `[img]http://example.com/image.jpg[/img]`.
-
-The hyperlink tag `<a>` is not allowed in comments, instead users can post URLs as-is and they will become links. This is done to help protect users against scams and SPAM, since links can't say something different than where they actually link to, thereby preventing phishing, for example.
-
-**Use a canonical URL**
-
-A canonical URL uses the [canonical link element](http://en.wikipedia.org/wiki/Canonical_link_element) in the `<head>` section of a webpage to prevent the creation of multiple separate comment directories for multiple page URLs that present the same content. For example, `http://example.com/page.html` and `http://example.com/page.html?parameter=1` will have separate comment threads because the URLs are different, even if both URLs return the same content.
-
-The following JavaScript will automatically use the URL in the canonical link element:
-
-```
-<script>var canon_url = (document.querySelector('link[rel="canonical"]') != null) ? '?canon_url=' + encodeURIComponent(document.querySelector('link[rel="canonical"]').getAttribute('href')) : ''; document.write('<script src="/hashover/comments.php' + canon_url + '"><\/script>');</script>
-```
-
-In PHP adding a `$canon_url` variable before the include function will trigger the canonical URL behavior:
-
-```
-<?php
-        $mode = 'php';
-        $canon_url = 'http://example.com/page.html';
-        include('hashover/comments.php');
-?>
-```
-
-**Need more control than a canonical URL offers?**
-
-If you need more fine tuned control over URL parsing, particularly what URL queries should be ignored, add unwanted URL queries, one per line, to a file named "ignore_queries.txt" under the "hashover" directory.
-
-Adding a query name without a value will remove the query from comment directory names no matter what its value is. Adding a query name with a value (name=value) will only remove that specific query with that specific value from comment directory names. For example, add "lang" to the "ignore_queries.txt" file and the URLs `http://example.com/page.html?lang=en` and `http://example.com/page.html?lang=jp` will be treated as being the same page and thus display the same comment thread.
-
-**Need to block an IP address?**
-
-If the `$ip_addrs` variable in the `hashover/scripts/settings.php` file is set to "yes", user IP addresses will be stored in their respective comment file(s). Those IP addresses can be used to block spamming, abusive, and/or obstructive users from posting and interacting with the comments all together. Simply add them, one per line, to a file named "blocklist.txt" in the "hashover" directory.
-
-In addition to that, if the variable `$spam_IP_check` is set to 'php', 'javascript', or 'both' HashOver will check whether or not a visitor's IP address is in the database of spam server IP addresses maintained at [stopforumspam.com](http://stopforumspam.com/). If a visitor's IP address is in the database the visitor is most likely a spam server, and the script will exit with a message saying "<b>HashOver:</b> You are blocked!" while disallowing the visitor any interaction with the comments, and thus successfully preventing spam.
-
-The value of `$spam_IP_check` determines in which mode(s) visitor IP address spam checking will be enabled. Generally, JavaScript mode is somewhat naturally protected against some forms of spam attacks, such as basic automated form filing, while PHP mode is not. If one is using PHP mode, they should also set `$spam_IP_check` to "php". Likewise, when using JavaScript mode `$spam_IP_check` should be set to "javascript", however, this isn't necessary if spam isn't an issue in JavaScript mode. Setting `$spam_IP_check` to "both" will enable spam checking in both modes, for those who make use of both modes.
-
-**Tutorials**
-
-[Implementing the HashOver open source commenting system within Pelican](http://moparx.com/2014/03/implementing-the-hashover-open-source-commenting-system-within-pelican/)
+Copyright © 2014–2019 Jacob Barkdull and contributors; HashOver 2 © 2026 its contributors.
