@@ -1,3 +1,26 @@
+HashOver 2.0.0 (unreleased)
+--------------------------------------------------------------------------------
+A complete rewrite; not compatible with HashOver 1.x installations, embed
+codes or comment files. See README.md for installation and SECURITY.md for
+the security design.
+
+* PHP 8.4+, Composer, PSR-4 classes, SQLite storage, Twig templates.
+* Only the "public" directory is served.
+* One renderer: comments work without JavaScript; hashover.js enhances them
+  and is compatible with a strict Content-Security-Policy.
+* Accessibility: WCAG 2.1 AA target (labels, errors, focus, live regions,
+  keyboard, reflow).
+* Security: rate limiting, CSRF tokens, signed admin sessions with logout,
+  encrypted e-mails, sanitizer based on the HTML5 parser, bot protection.
+* Privacy: Gravatar, IP storage and stopforumspam are opt-in; IP addresses
+  are forgotten after a retention period; likes use a keyed hash.
+* Comment counts, RSS feeds, sorting, popular comments, notifications,
+  editing and deleting kept; French, Spanish and Japanese fully translated.
+* Removed: Identi.ca/Twitter name links, user-agent sniffing, "count_link"
+  script (use data-hashover-count), HTML-file templates (use Twig).
+* bin/hashover: setup, check, hash-password, purge-ips.
+
+
 Changes for PHP 8.4 and security hardening 2026-10-04
 --------------------------------------------------------------------------------
 * Runs on PHP 8.1+ (tested with 8.4); fixed the fatal error in "like.php" and
