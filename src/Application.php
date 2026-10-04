@@ -37,6 +37,9 @@ use HashOver\View\Translator;
  *
  * GET  ?action=thread|form|count|rss
  * POST action=comment|edit|delete|like|login|logout
+ *
+ * Either may carry "language" to answer in another of Config::LANGUAGES than
+ * the configured one, e.g. for the translations of a multilingual page.
  */
 final readonly class Application
 {
@@ -53,10 +56,14 @@ final readonly class Application
     private Renderer $renderer;
     private Notifier $notifier;
 
+    /**
+     * @param string|null $language interface language; defaults to the configured one
+     */
     public function __construct(
         private Config $config,
-        Database $database,
-        ?Mailer $mailer = null,
+        private Database $database,
+        private ?Mailer $mailer = null,
+        ?string $language = null,
     ) {
         $keys = new Keys($config);
         $this->threads = new ThreadRepository($database);
@@ -66,9 +73,11 @@ final readonly class Application
         $this->cipher = new EmailCipher($keys);
         $this->formGuard = new FormGuard($config, $keys);
         $this->visitor = new Visitor($config, $keys);
-        $this->translator = new Translator($config->language);
+        $this->translator = new Translator($language ?? $config->language);
         $this->renderer = new Renderer($config, $this->translator, new DateFormatter($this->translator, $config->timezone, $config->relativeDates), new Formatter(), $this->cipher);
-        $this->notifier = new Notifier($config, $mailer ?? new PhpMailer($config->senderEmail), $this->cipher, $this->translator);
+        // The site owner is always written to in the configured language
+        $ownerTranslator = $this->translator->language === $config->language ? $this->translator : new Translator($config->language);
+        $this->notifier = new Notifier($config, $mailer ?? new PhpMailer($config->senderEmail), $this->cipher, $this->translator, $ownerTranslator);
     }
 
     public static function fromConfigFile(string $file): self
@@ -83,8 +92,31 @@ final readonly class Application
         return $this->config;
     }
 
+    /**
+     * The same application speaking another language; unknown languages are
+     * ignored rather than refused, so a stale page never loses its comments
+     */
+    public function withLanguage(string $language): self
+    {
+        if ($language === $this->translator->language || !in_array($language, Config::LANGUAGES, true)) {
+            return $this;
+        }
+
+        return new self($this->config, $this->database, $this->mailer, $language);
+    }
+
     public function handle(Request $request): Response
     {
+        $language = $request->isPost() ? $request->post('language') : $request->query('language');
+
+        if ($language !== '' && $language !== $this->translator->language) {
+            $localized = $this->withLanguage($language);
+
+            if ($localized !== $this) {
+                return $localized->handle($request);
+            }
+        }
+
         try {
             if ($request->isPost()) {
                 return $this->handlePost($request);
@@ -150,7 +182,7 @@ final readonly class Application
             'page' => $page,
             'thread' => $thread,
             'comments' => array_slice(array_reverse($comments), 0, 50),
-            'self_url' => ($request->isHttps() ? 'https' : 'http') . '://' . $request->server('HTTP_HOST') . $this->config->baseUrl . 'index.php?action=rss&url=' . rawurlencode($page->url),
+            'self_url' => ($request->isHttps() ? 'https' : 'http') . '://' . $request->server('HTTP_HOST') . $this->config->baseUrl . 'index.php?action=rss&url=' . rawurlencode($page->url) . $this->languageParameter(),
         ]);
 
         return new Response($body, 200, 'application/rss+xml; charset=UTF-8')
@@ -420,10 +452,16 @@ final readonly class Application
             'csrf' => $this->auth->csrfToken($request),
             'timestamp' => $this->formGuard->timestamp(),
             'endpoint' => $this->config->baseUrl . 'index.php',
-            'rss_url' => $this->config->baseUrl . 'index.php?action=rss&url=' . rawurlencode($page->url),
+            'rss_url' => $this->config->baseUrl . 'index.php?action=rss&url=' . rawurlencode($page->url) . $this->languageParameter(),
             'count_text' => $this->countText($view->commentCount, $view->replyCount),
             'honeypot' => FormGuard::HONEYPOT_FIELD,
         ];
+    }
+
+    /** "&language=…" for links to HashOver itself, when not in the configured language */
+    private function languageParameter(): string
+    {
+        return $this->translator->language === $this->config->language ? '' : '&language=' . rawurlencode($this->translator->language);
     }
 
     private function countText(int $comments, int $replies): string

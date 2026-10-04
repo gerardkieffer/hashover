@@ -62,7 +62,7 @@ final readonly class Config
         'like' => [30, 60],
     ];
 
-    public const array LANGUAGES = ['en', 'es', 'fr', 'ja'];
+    public const array LANGUAGES = ['de', 'en', 'es', 'fr', 'ja'];
 
     /** Tracking parameters that never change a page's content */
     public const array DEFAULT_IGNORED_QUERY_PARAMETERS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'fbclid', 'gclid', 'mc_cid', 'mc_eid'];

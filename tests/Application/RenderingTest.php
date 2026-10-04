@@ -151,12 +151,57 @@ final class RenderingTest extends ApplicationTestCase
 
     public function testOtherLanguages(): void
     {
-        foreach (['fr' => 'Commentaires', 'es' => 'Comentarios', 'ja' => 'コメント'] as $language => $heading) {
+        foreach (['de' => 'Kommentare', 'fr' => 'Commentaires', 'es' => 'Comentarios', 'ja' => 'コメント'] as $language => $heading) {
             $this->boot(['language' => $language]);
             $html = $this->browser()->thread()->body;
 
             self::assertStringContainsString('lang="' . $language . '"', $html);
             self::assertStringContainsString('>' . $heading . '</h2>', $html);
         }
+    }
+
+    public function testPagesMayAskForAnotherLanguage(): void
+    {
+        $this->browser()->comment(['body' => 'x']);
+        $html = $this->browser()->thread(query: ['language' => 'de'])->body;
+
+        self::assertStringContainsString('lang="de"', $html);
+        self::assertStringContainsString('>Kommentare</h2>', $html);
+        self::assertStringContainsString('name="language" value="de"', $html, 'Forms must keep the language');
+        self::assertStringContainsString('&amp;language=de', $html, 'The feed link must keep the language');
+    }
+
+    public function testConfiguredLanguageAddsNothingToLinks(): void
+    {
+        $this->browser()->comment(['body' => 'x']);
+        $html = $this->browser()->thread()->body;
+
+        self::assertStringContainsString('name="language" value="en"', $html);
+        self::assertStringNotContainsString('&amp;language=', $html);
+    }
+
+    public function testUnknownLanguagesFallBackToTheConfiguredOne(): void
+    {
+        $html = $this->browser()->thread(query: ['language' => 'xx'])->body;
+
+        self::assertStringContainsString('lang="en"', $html);
+        self::assertStringContainsString('>Comments</h2>', $html);
+    }
+
+    public function testPostedFormsAnswerInTheirLanguage(): void
+    {
+        $data = self::json($this->browser()->comment(['body' => 'Hallo', 'language' => 'de'], true));
+
+        self::assertSame('Ihr Kommentar wurde veröffentlicht.', $data['message']);
+        self::assertIsString($data['html']);
+        self::assertStringContainsString('1 Kommentar', $data['html']);
+    }
+
+    public function testTranslationsShareOneThread(): void
+    {
+        $this->browser()->comment(['body' => 'Bonjour', 'language' => 'fr']);
+
+        self::assertStringContainsString('Bonjour', $this->browser()->thread(query: ['language' => 'de'])->body);
+        self::assertStringContainsString('Bonjour', $this->browser()->thread()->body);
     }
 }

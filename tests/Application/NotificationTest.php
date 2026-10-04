@@ -55,4 +55,16 @@ final class NotificationTest extends ApplicationTestCase
 
         self::assertSame([], $this->mailer->sent);
     }
+
+    public function testOwnerIsWrittenToInTheConfiguredLanguageAndRepliersInTheirs(): void
+    {
+        $this->browser()->comment(['name' => 'Alice', 'email' => 'alice@example.org', 'notify' => '1', 'body' => 'question']);
+        $this->browser()->comment(['name' => 'Bob', 'body' => 'Antwort', 'parent' => '1', 'language' => 'de']);
+
+        [, $owner, $replier] = $this->mailer->sent;
+        self::assertSame('owner@example.com', $owner['to']);
+        self::assertStringStartsWith('New comment on', $owner['subject']);
+        self::assertSame('alice@example.org', $replier['to']);
+        self::assertStringStartsWith('Neue Antwort auf Ihren Kommentar', $replier['subject']);
+    }
 }

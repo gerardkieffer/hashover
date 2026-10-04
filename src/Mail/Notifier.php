@@ -13,6 +13,9 @@ use HashOver\View\Translator;
 /**
  * E-mails about new comments: to the site owner, and to the author of the
  * comment that was replied to (when they subscribed).
+ *
+ * The site owner is written to in the configured language; repliers in the
+ * language of the page the reply was posted from.
  */
 final readonly class Notifier
 {
@@ -21,28 +24,30 @@ final readonly class Notifier
         private Mailer $mailer,
         private EmailCipher $cipher,
         private Translator $translator,
+        private ?Translator $ownerTranslator = null,
     ) {}
 
     public function commentPosted(Thread $thread, Comment $comment, string $authorEmail, ?Comment $parent): void
     {
         $permalink = $thread->pageUrl . '#' . $comment->anchor();
-        $author = $comment->name !== '' ? $comment->name : $this->translator->translate('comment.anonymous');
         $page = $thread->title !== '' ? $thread->title : $thread->pageUrl;
         $replyTo = $this->config->replyToCommenter && $authorEmail !== '' ? $authorEmail : null;
         $parentEmail = $parent !== null && $parent->notify ? $this->cipher->decrypt($parent->email) : '';
 
-        $body = $this->translator->translate('mail.body', [
-            'author' => $author,
+        $body = static fn(Translator $translator): string => $translator->translate('mail.body', [
+            'author' => $comment->name !== '' ? $comment->name : $translator->translate('comment.anonymous'),
             'page' => $page,
             'comment' => $comment->body,
             'permalink' => $permalink,
         ]);
 
         if ($this->config->notificationEmail !== '' && !self::same($authorEmail, $this->config->notificationEmail)) {
+            $owner = $this->ownerTranslator ?? $this->translator;
+
             $this->mailer->send(
                 $this->config->notificationEmail,
-                $this->translator->translate('mail.subject_new', ['page' => $page]),
-                $body,
+                $owner->translate('mail.subject_new', ['page' => $page]),
+                $body($owner),
                 $replyTo,
             );
         }
@@ -51,7 +56,7 @@ final readonly class Notifier
             $this->mailer->send(
                 $parentEmail,
                 $this->translator->translate('mail.subject_reply', ['page' => $page]),
-                $body . "\n\n" . $this->translator->translate('mail.unsubscribe'),
+                $body($this->translator) . "\n\n" . $this->translator->translate('mail.unsubscribe'),
                 $replyTo,
             );
         }

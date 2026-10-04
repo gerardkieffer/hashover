@@ -50,7 +50,7 @@ return [
 
     // Display ----------------------------------------------------------------
 
-    'language' => 'en',              // en, es, fr or ja
+    'language' => 'en',              // de, en, es, fr or ja; pages may ask for another one
     'timezone' => 'UTC',             // for dates shown to visitors
     'default_name' => '',            // shown for comments without a name; empty: "Anonymous"
     'show_page_title' => true,       // "Post a comment on “Page title”"

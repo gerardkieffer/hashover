@@ -14,7 +14,7 @@ Features
 - Limited formatting (`<b>`, `<i>`, `<code>`, lists, quotes…), automatic links, images shown on request
 - E-mail notifications for the site owner and for replies
 - RSS feed per page, comment counts for links
-- English, French, Spanish and Japanese
+- English, French, German, Spanish and Japanese, chosen per page if needed
 - Works without JavaScript; with JavaScript, everything happens without reloading the page
 
 Security and privacy
@@ -112,7 +112,9 @@ HashOver uses the page's `<link rel="canonical">` (or its address) to find its c
 <script type="module" src="/hashover/hashover.js"></script>
 ```
 
-`HashOver\Embed::thread()` accepts the canonical `url` of the page and its `title` (used in e-mails and the RSS feed).
+`HashOver\Embed::thread()` accepts the canonical `url` of the page, its `title` (used in e-mails and the RSS feed) and its `language`.
+
+**Multilingual pages:** the interface language is `language` from the configuration, unless the page asks for another one: `Embed::thread(language: 'de')` in PHP, or `data-hashover-language="de"` on the `div` with JavaScript. Translations of one article can share a single thread by passing the same `url` from each of them, each with its own `language`. E-mails to the site owner always use the configured language.
 
 **Comment counts**, for example in a list of articles (with the script loaded on the page):
 
@@ -125,7 +127,7 @@ Customizing
 
 - **Look:** the stylesheet uses CSS custom properties (`--hashover-accent`, `--hashover-danger`, …) on `.hashover-thread`; override them in your own stylesheet. Fonts and text colour are inherited from your page.
 - **Markup:** copy files from `templates` to a directory of your own, edit them, and set `templates_directory`. Templates are [Twig](https://twig.symfony.com/) files and escape output automatically.
-- **Language and dates:** `language`, `timezone` and `relative_dates` in the configuration.
+- **Language and dates:** `language` (de, en, es, fr or ja), `timezone` and `relative_dates` in the configuration.
 
 Administration
 ---
