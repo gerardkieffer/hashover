@@ -9,6 +9,7 @@
  * Options, as attributes of the container:
  *   data-hashover-url       canonical URL of the page (default: <link rel="canonical"> or the address)
  *   data-hashover-language  interface language, e.g. "fr" (default: the configured one)
+ *   data-hashover-title     page title shown in the form heading (default: the document title)
  *
  * Comment counts: <span data-hashover-count="https://example.com/page"></span>,
  * with an optional data-hashover-language as well.
@@ -52,7 +53,7 @@ function text(container, key) {
 function apiUrl(container, parameters) {
     const url = new URL(endpoint);
     url.searchParams.set('url', pageUrl(container));
-    url.searchParams.set('title', document.title);
+    url.searchParams.set('title', container.dataset.hashoverTitle || document.title);
 
     if (container.dataset.hashoverLanguage) {
         url.searchParams.set('language', container.dataset.hashoverLanguage);

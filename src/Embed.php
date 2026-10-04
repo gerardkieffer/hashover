@@ -39,7 +39,9 @@ final class Embed
                 ? ' data-hashover-language="' . $escape($language) . '"'
                 : '';
 
-            return '<div id="hashover" class="hashover" data-hashover-url="' . $escape($page->url) . '"' . $languageAttribute . '>'
+            $titleAttribute = $title !== '' ? ' data-hashover-title="' . $escape($title) . '"' : '';
+
+            return '<div id="hashover" class="hashover" data-hashover-url="' . $escape($page->url) . '"' . $titleAttribute . $languageAttribute . '>'
                 . $application->renderThread($request, $page, $state)
                 . '</div>';
         } catch (UserError $error) {

@@ -204,4 +204,12 @@ final class RenderingTest extends ApplicationTestCase
         self::assertStringContainsString('Bonjour', $this->browser()->thread(query: ['language' => 'de'])->body);
         self::assertStringContainsString('Bonjour', $this->browser()->thread()->body);
     }
+
+    public function testEachPageShowsItsOwnTitleOnASharedThread(): void
+    {
+        $this->browser()->comment(['body' => 'x', 'title' => 'Le titre']);
+
+        self::assertStringContainsString('„Der Titel“', $this->browser()->thread(query: ['language' => 'de', 'title' => 'Der Titel'])->body);
+        self::assertStringContainsString('“Le titre”', $this->browser()->thread()->body, 'The stored title is the fallback');
+    }
 }

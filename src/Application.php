@@ -439,7 +439,10 @@ final readonly class Application
             'view' => $view,
             'sort' => $state->sort,
             'sorts' => Sort::cases(),
-            'title' => $thread !== null && $thread->title !== '' ? $thread->title : $state->title,
+            // The page's own title first, so each translation of a shared
+            // thread names itself; the title stored with the first comment
+            // (used by e-mails and the feed) is only the fallback
+            'title' => $state->title !== '' ? $state->title : ($thread->title ?? ''),
             'message' => $state->message !== null && $this->translator->has($state->message) ? $state->message : null,
             'error_field' => $state->errorField,
             'reply_to' => $replyTo,
