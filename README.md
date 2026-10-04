@@ -16,6 +16,7 @@ Features
 - RSS feed per page, comment counts for links
 - English, French, German, Spanish and Japanese, chosen per page if needed
 - Works without JavaScript; with JavaScript, everything happens without reloading the page
+- Optional spam and bot protection with [Akismet](https://akismet.com/) and [Cloudflare Turnstile](https://www.cloudflare.com/application-services/products/turnstile/)
 
 Security and privacy
 ---
@@ -24,8 +25,8 @@ Security and privacy
 - All output escaped by default; comments are sanitized with the HTML5 parser and an allow-list
 - Passwords hashed with `password_hash()`; e-mail addresses encrypted (XSalsa20-Poly1305)
 - HttpOnly, SameSite cookies; CSRF tokens; same-origin checks; rate limiting; bot protection
-- Compatible with a strict Content-Security-Policy (no inline scripts, styles or event handlers)
-- Gravatar, storing IP addresses and stopforumspam.com are off by default; stored IP addresses are forgotten after a retention period
+- Compatible with a strict Content-Security-Policy (no inline scripts, styles or event handlers); Turnstile needs two extra entries, see [below](#content-security-policy)
+- Gravatar, storing IP addresses, stopforumspam.com, Akismet and Turnstile are off by default; stored IP addresses are forgotten after a retention period
 
 See [SECURITY.md](SECURITY.md) for the details and how to report a vulnerability.
 
@@ -121,6 +122,61 @@ HashOver uses the page's `<link rel="canonical">` (or its address) to find its c
 ```html
 <a href="/blog/post#hashover"><span data-hashover-count="/blog/post">Comments</span></a>
 ```
+
+Spam and bot protection
+---
+
+Every form already has a hidden honeypot field and a signed timestamp, and every visitor is rate limited. Two optional services add more. Both are off by default, and both send visitors' data to a third party: mention them in your privacy policy.
+
+Both are called from PHP, which needs `allow_url_fopen` and the `openssl` extension. Run `bin/hashover check` after setting them up: it asks each service whether it accepts your keys.
+
+### Akismet: rejects spam
+
+1. Get an API key at [akismet.com](https://akismet.com/). It is free for personal, non-commercial sites only; commercial sites need a paid plan.
+2. Set `'akismet_key' => '…'` in `config/config.php`.
+
+Akismet checks every new comment and every edit, except the administrator's. **Spam is rejected, not stored**: the visitor sees "Our spam filter flagged your comment, so it wasn't posted." With JavaScript, their text stays in the form; without it, it is lost, as with any other error. There is no moderation queue, so a false positive can't be approved later; the visitor has to rephrase.
+
+If Akismet can't be reached or doesn't answer as expected (for example because the key is wrong), comments are **accepted** unchecked and the problem is written to PHP's error log.
+
+Akismet receives the comment, the author's name, e-mail address and website, their IP address, browser (user agent) and referring page, and the page's address. Akismet is run by Automattic, in the United States.
+
+### Cloudflare Turnstile: stops bots
+
+1. In the [Cloudflare dashboard](https://dash.cloudflare.com/?to=/:account/turnstile), add a Turnstile widget. "Managed" mode is recommended: most visitors pass without doing anything. A Cloudflare account is needed, but your site doesn't have to use Cloudflare otherwise.
+2. List **every host name that shows comments** in the widget's settings (e.g. `example.com` and `www.example.com`). HashOver also refuses tokens solved on other host names than `allowed_hosts`.
+3. Set `turnstile_site_key` and `turnstile_secret_key` in `config/config.php`. Both must be set, or both empty.
+
+How it works for visitors:
+
+- The check is shown in the main comment form, above "Post comment". Until it is completed, the **Like**, **Reply**, **Post comment**, **Post reply** and **Save changes** buttons are grayed out, with a short note next to them pointing to the check. Clicking one of them moves to the check instead.
+- Once the check succeeds, HashOver gives the visitor a "pass": a signed cookie (`hashover-human`), bound to their IP address, valid for `turnstile_pass_minutes` (60 by default). One check covers any number of comments and likes during that time.
+- When the pass expires, the buttons are grayed out again and the check runs again, usually without the visitor doing anything.
+- It applies to everyone, the administrator too. Reading comments, logging in, logging out and deleting don't need it.
+- The server enforces it: posting, editing or liking without a valid pass is refused, whatever the browser shows.
+
+Things to know:
+
+- **JavaScript is required to post and like.** Turnstile only runs in the browser, and `hashover.js` loads it. Visitors without JavaScript can still read the comments; the form tells them that the check needs JavaScript. If you embed comments with PHP, include `hashover.js` too.
+- **Turnstile fails closed:** if Cloudflare can't be reached, nobody can post or like until it can.
+- Visitors' browsers load the widget from `challenges.cloudflare.com`, and your server sends their IP address to Cloudflare to check the result.
+- The widget follows your page: light or dark depending on your text colour, in the language of the comments, and compact on narrow screens.
+- **Testing:** Cloudflare's [test keys](https://developers.cloudflare.com/turnstile/troubleshooting/testing/) (site key `1x00000000000000000000AA`, secret key `1x0000000000000000000000000000000AA`) always pass and work on `localhost`. HashOver recognizes the test secret keys and then skips its host name check. Never use them on a live site; `bin/hashover check` reminds you.
+
+### Content-Security-Policy
+
+HashOver itself works with a strict policy. If your pages send a `Content-Security-Policy` header and Turnstile is enabled, allow Cloudflare's script and frame, in addition to what your site already allows:
+
+```
+script-src 'self' https://challenges.cloudflare.com;
+frame-src https://challenges.cloudflare.com;
+```
+
+Without them, visitors see "The security check couldn't be loaded" and can't post or like. Content blockers that block `challenges.cloudflare.com` have the same effect, and visitors are told so. Akismet runs on the server and needs no change.
+
+### Behind a proxy or CDN
+
+If your site is behind a reverse proxy or a CDN (including Cloudflare's own proxy), configure the web server to pass the visitor's real address to PHP (`mod_remoteip`, nginx `real_ip`, with `CF-Connecting-IP` for Cloudflare). Otherwise all visitors share the proxy's address: Akismet judges everyone by it, Turnstile passes are bound to it, and rate limits are shared.
 
 Customizing
 ---

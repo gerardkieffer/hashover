@@ -2,8 +2,10 @@
  # One comment and, in threaded order, its replies.
  # Variables: node (CommentNode), popular (bool: copy shown in "Most popular")
  #}
+{% import '_macros.html.twig' as macros %}
 {% set comment = node.comment %}
 {% set id = comment.anchor() ~ (popular ? '-popular' : '') %}
+{% set gated = turnstile and turnstile.remaining == 0 %}
 {% if comment.deleted %}
     <article class="hashover-comment hashover-deleted" id="{{ id }}" tabindex="-1">
         <p>{{ t('comment.deleted') }}</p>
@@ -40,14 +42,14 @@
                         {% include '_hidden.html.twig' %}
                         <input type="hidden" name="action" value="like">
                         <input type="hidden" name="id" value="{{ comment.id }}">
-                        <button type="submit" class="hashover-like" aria-pressed="{{ node.liked ? 'true' : 'false' }}" aria-describedby="{{ id }}-likes">
+                        <button type="submit" class="hashover-like" aria-pressed="{{ node.liked ? 'true' : 'false' }}" {{- macros.gate(turnstile, gated, id ~ '-gate', id ~ '-likes') }}>
                             {{- t('comment.like') }}<span class="hashover-sr-only"> {{ t('comment.by', {name: name}) }}</span>
                         </button>
                     </form>
                 {% endif %}
 
                 <a href="{{ page.urlWith({hashover_reply: comment.id}, id ~ '-slot') }}" class="hashover-reply"
-                    data-hashover-open="reply" data-hashover-id="{{ comment.id }}" aria-controls="{{ id }}-slot">
+                    data-hashover-open="reply" data-hashover-id="{{ comment.id }}" aria-controls="{{ id }}-slot" {{- macros.gate(turnstile, gated, id ~ '-gate') }}>
                     {{- t('comment.reply') }}<span class="hashover-sr-only"> {{ t('comment.to', {name: name}) }}</span>
                 </a>
 
@@ -56,6 +58,11 @@
                         data-hashover-open="edit" data-hashover-id="{{ comment.id }}" aria-controls="{{ id }}-slot">
                         {{- t('comment.edit') }}<span class="hashover-sr-only"> {{ t('comment.by', {name: name}) }}</span>
                     </a>
+                {% endif %}
+
+                {% if turnstile %}
+                    {# Hidden from screen readers: the buttons it explains announce it #}
+                    <span class="hashover-gate-note" id="{{ id }}-gate" aria-hidden="true" {%- if not gated %} hidden{% endif %}>{{ t('verify.note') }}</span>
                 {% endif %}
             {% endif %}
         </footer>

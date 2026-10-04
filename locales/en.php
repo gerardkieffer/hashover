@@ -52,6 +52,11 @@ return [
     'form.delete_confirm' => 'Yes, delete it',
     'form.cancel' => 'Cancel',
 
+    'verify.hint' => 'To post, like or reply, please complete this security check by Cloudflare Turnstile.',
+    'verify.needs_javascript' => 'The security check needs JavaScript. Please turn it on to post, like or reply.',
+    'verify.note' => 'To like or reply, complete the security check in the comment form above.',
+    'verify.note_form' => 'To send this form, complete the security check in the comment form above.',
+
     'comment.anonymous' => 'Anonymous',
     'comment.deleted' => 'This comment was deleted.',
     'comment.edited' => 'edited',
@@ -76,6 +81,7 @@ return [
     'message.comment_deleted' => 'The comment was deleted.',
     'message.liked' => 'You like this comment.',
     'message.unliked' => 'You no longer like this comment.',
+    'message.verified' => 'Thank you! You can now post, like and reply.',
     'message.logged_in' => 'You are logged in.',
     'message.logged_out' => 'You are logged out.',
 
@@ -98,12 +104,19 @@ return [
     'error.comment_too_long' => 'Your comment is too long. Please shorten it to {maximum} characters.',
     'error.own_comment' => 'You can’t like your own comment.',
     'error.confirm_delete' => 'Please confirm the deletion.',
+    'error.spam_filter' => 'Our spam filter flagged your comment, so it wasn’t posted.',
+    'error.verification_required' => 'Please complete the security check in the comment form first.',
+    'error.verification_failed' => 'The security check failed. Please try again.',
+    'error.verification_unavailable' => 'The security check isn’t available right now. Please try again in a moment.',
 
     'js.confirm_delete' => 'Delete this comment? This can’t be undone.',
     'js.loading' => 'Loading comments…',
     'js.failed' => 'Something went wrong. Please try again.',
     'js.show_image' => 'Show image',
     'js.image' => 'Image posted by the commenter',
+    'js.verify_loading' => 'Loading the security check…',
+    'js.verify_unavailable' => 'The security check couldn’t be loaded. Please reload the page, or allow challenges.cloudflare.com if you use a content blocker.',
+    'js.verify_failed' => 'The security check failed. Please try again or reload the page.',
 
     'mail.subject_new' => 'New comment on “{page}”',
     'mail.subject_reply' => 'New reply to your comment on “{page}”',

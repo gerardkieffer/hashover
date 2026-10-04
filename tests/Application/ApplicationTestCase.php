@@ -10,6 +10,7 @@ use HashOver\Model\Comment;
 use HashOver\Storage\CommentRepository;
 use HashOver\Storage\Database;
 use HashOver\Tests\Support\Browser;
+use HashOver\Tests\Support\FakeHttpClient;
 use HashOver\Tests\Support\RecordingMailer;
 use HashOver\Tests\Support\TestConfig;
 use PHPUnit\Framework\TestCase;
@@ -18,6 +19,7 @@ abstract class ApplicationTestCase extends TestCase
 {
     protected Database $database;
     protected RecordingMailer $mailer;
+    protected FakeHttpClient $http;
     protected Application $app;
 
     protected function setUp(): void
@@ -32,7 +34,40 @@ abstract class ApplicationTestCase extends TestCase
     {
         $this->database = new Database(':memory:');
         $this->mailer = new RecordingMailer();
-        $this->app = new Application(TestConfig::create($config), $this->database, $this->mailer);
+        $this->http = new FakeHttpClient();
+        $this->app = new Application(TestConfig::create($config), $this->database, $this->mailer, http: $this->http);
+    }
+
+    /**
+     * Restart with another configuration, keeping the database
+     *
+     * @param array<string, mixed> $config
+     */
+    protected function reconfigure(array $config): void
+    {
+        $this->app = new Application(TestConfig::create($config), $this->database, $this->mailer, http: $this->http);
+    }
+
+    /**
+     * Run code; returns its result and what it wrote with error_log()
+     *
+     * @template T
+     * @param callable(): T $code
+     * @return array{T, string}
+     */
+    protected static function withErrorLog(callable $code): array
+    {
+        $file = (string) tempnam(sys_get_temp_dir(), 'hashover-log');
+        $previous = ini_set('error_log', $file);
+
+        try {
+            $result = $code();
+
+            return [$result, (string) file_get_contents($file)];
+        } finally {
+            ini_set('error_log', $previous === false ? '' : $previous);
+            unlink($file);
+        }
     }
 
     protected function browser(): Browser

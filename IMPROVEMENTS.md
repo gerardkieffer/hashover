@@ -2,7 +2,7 @@
 
 ## Status of the suggestions from the 1.x audit
 
-All 27 suggestions were addressed in HashOver 2, except the ones that would have added new features (moderation queue, Akismet, e-mail edit links), which were out of scope.
+All 27 suggestions were addressed in HashOver 2, except the ones that would have added new features (moderation queue, e-mail edit links), which were out of scope. Akismet was added later, together with Cloudflare Turnstile.
 
 | # | Suggestion | Status in HashOver 2 |
 |---|---|---|
@@ -16,7 +16,7 @@ All 27 suggestions were addressed in HashOver 2, except the ones that would have
 | 8 | Gravatar privacy | ✅ Off by default; SHA-256 when enabled |
 | 9 | IP storage / retention | ✅ Off by default; forgotten after `ip_retention_days`; `bin/hashover purge-ips` |
 | 10 | Robust HTML sanitizer | ✅ Escape-first formatter re-parsed by the HTML5 parser with an allow-list (no dependency) |
-| 11 | Better spam protection | ✅ Signed form timestamp, honeypot, rate limits; ⛔ Akismet and moderation queue (new features) |
+| 11 | Better spam protection | ✅ Signed form timestamp, honeypot, rate limits, opt-in Akismet and Cloudflare Turnstile; ⛔ moderation queue (new feature) |
 | 12 | No global variables | ✅ Classes with constructor injection |
 | 13 | One renderer for both modes | ✅ Server-side Twig rendering; JavaScript enhances it |
 | 14 | Boolean settings | ✅ Typed, validated configuration |
@@ -52,7 +52,7 @@ Ordered roughly by value. None of them were implemented, as they need a decision
 7. **SMTP sending** (e.g. with `symfony/mailer`), as `mail()` is often unavailable or ends up in spam folders.
 8. **Edit links by e-mail** for commenters who forgot their password.
 9. **Data export and deletion** commands (GDPR requests), e.g. `bin/hashover export --email=…`.
-10. **Akismet** or a similar spam service, opt-in.
+10. ~~**Akismet** or a similar spam service, opt-in.~~ Done, along with Cloudflare Turnstile. With a moderation queue (6), Akismet's spam could be held for review instead of rejected, and reported back to Akismet as spam or not.
 
 ### Smaller ideas
 

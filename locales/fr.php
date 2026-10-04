@@ -51,6 +51,11 @@ return [
     'form.delete_confirm' => 'Oui, le supprimer',
     'form.cancel' => 'Annuler',
 
+    'verify.hint' => 'Pour publier, aimer ou répondre, veuillez effectuer cette vérification de sécurité de Cloudflare Turnstile.',
+    'verify.needs_javascript' => 'La vérification de sécurité nécessite JavaScript. Veuillez l’activer pour publier, aimer ou répondre.',
+    'verify.note' => 'Pour aimer ou répondre, effectuez la vérification de sécurité dans le formulaire de commentaire ci-dessus.',
+    'verify.note_form' => 'Pour envoyer ce formulaire, effectuez la vérification de sécurité dans le formulaire de commentaire ci-dessus.',
+
     'comment.anonymous' => 'Anonyme',
     'comment.deleted' => 'Ce commentaire a été supprimé.',
     'comment.edited' => 'modifié',
@@ -75,6 +80,7 @@ return [
     'message.comment_deleted' => 'Le commentaire a été supprimé.',
     'message.liked' => 'Vous aimez ce commentaire.',
     'message.unliked' => 'Vous n’aimez plus ce commentaire.',
+    'message.verified' => 'Merci. Vous pouvez maintenant publier, aimer et répondre.',
     'message.logged_in' => 'Vous êtes connecté.',
     'message.logged_out' => 'Vous êtes déconnecté.',
 
@@ -97,12 +103,19 @@ return [
     'error.comment_too_long' => 'Votre commentaire est trop long. Veuillez le raccourcir à {maximum} caractères.',
     'error.own_comment' => 'Vous ne pouvez pas aimer votre propre commentaire.',
     'error.confirm_delete' => 'Veuillez confirmer la suppression.',
+    'error.spam_filter' => 'Notre filtre antispam a signalé votre commentaire ; il n’a donc pas été publié.',
+    'error.verification_required' => 'Veuillez d’abord effectuer la vérification de sécurité dans le formulaire de commentaire.',
+    'error.verification_failed' => 'La vérification de sécurité a échoué. Veuillez réessayer.',
+    'error.verification_unavailable' => 'La vérification de sécurité n’est pas disponible pour le moment. Veuillez réessayer dans un instant.',
 
     'js.confirm_delete' => 'Supprimer ce commentaire ? Cette action est irréversible.',
     'js.loading' => 'Chargement des commentaires…',
     'js.failed' => 'Une erreur s’est produite. Veuillez réessayer.',
     'js.show_image' => 'Afficher l’image',
     'js.image' => 'Image publiée par l’auteur du commentaire',
+    'js.verify_loading' => 'Chargement de la vérification de sécurité…',
+    'js.verify_unavailable' => 'La vérification de sécurité n’a pas pu être chargée. Veuillez recharger la page, ou autoriser challenges.cloudflare.com si vous utilisez un bloqueur de contenu.',
+    'js.verify_failed' => 'La vérification de sécurité a échoué. Veuillez réessayer ou recharger la page.',
 
     'mail.subject_new' => 'Nouveau commentaire sur « {page} »',
     'mail.subject_reply' => 'Nouvelle réponse à votre commentaire sur « {page} »',

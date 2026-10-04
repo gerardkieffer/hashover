@@ -14,10 +14,18 @@
  * Comment counts: <span data-hashover-count="https://example.com/page"></span>,
  * with an optional data-hashover-language as well.
  *
+ * With Cloudflare Turnstile enabled, this script loads the widget from
+ * challenges.cloudflare.com into the comment form, exchanges its token for a
+ * pass cookie and enables liking, replying and posting until the pass expires.
+ *
  * @license AGPL-3.0-or-later
  */
 
 const endpoint = new URL('index.php', import.meta.url);
+const turnstileScript = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+
+/** Threads on this page */
+const containers = [...new Set(document.querySelectorAll('#hashover, [data-hashover]'))];
 
 const fallbackText = {
     confirmDelete: 'Delete this comment? This can’t be undone.',
@@ -25,6 +33,9 @@ const fallbackText = {
     failed: 'Something went wrong. Please try again.',
     showImage: 'Show image',
     image: 'Image posted by the commenter',
+    verifyLoading: 'Loading the security check…',
+    verifyUnavailable: 'The security check couldn’t be loaded.',
+    verifyFailed: 'The security check failed. Please try again or reload the page.',
 };
 
 /** URL of the page the comments belong to */
@@ -147,6 +158,10 @@ function enhance(container) {
 
     const thread = container.querySelector('.hashover-thread');
 
+    if (thread?.dataset.hashoverTurnstile) {
+        setVerified(Number(thread.dataset.hashoverVerified) || 0);
+    }
+
     if (thread && !document.querySelector('link[rel="alternate"][data-hashover]')) {
         const feed = container.querySelector('a[type="application/rss+xml"]');
 
@@ -179,6 +194,7 @@ async function toggleForm(container, button) {
     try {
         const html = await request(apiUrl(container, { action: 'form', [button.dataset.hashoverOpen]: button.dataset.hashoverId }), { headers: { Accept: 'text/html' } });
         slot.innerHTML = html;
+        gate(container);
         button.setAttribute('aria-expanded', 'true');
         focus(slot.querySelector('textarea, button'));
     } catch (error) {
@@ -250,15 +266,18 @@ async function submit(container, form, submitter) {
         const result = await request(action, { method: 'POST', body: data, headers: { Accept: 'application/json' } });
 
         if (!result.ok) {
+            if (result.error === 'error.verification_required') {
+                expire();
+            }
+
             showError(form, result.message, result.field);
             announce(container, result.message);
             return;
         }
 
         if ('liked' in result) {
-            const button = form.querySelector('.hashover-like');
-            button.setAttribute('aria-pressed', String(result.liked));
-            container.querySelector('#' + CSS.escape(button.getAttribute('aria-describedby'))).textContent = result.likes > 0 ? result.likesText : '';
+            form.querySelector('.hashover-like').setAttribute('aria-pressed', String(result.liked));
+            form.closest('.hashover-actions').querySelector('.hashover-likes').textContent = result.likes > 0 ? result.likesText : '';
             announce(container, result.message);
             return;
         }
@@ -279,13 +298,240 @@ async function submit(container, form, submitter) {
     }
 }
 
+// Cloudflare Turnstile
+
+/** Time (ms) until which the visitor's pass is valid, as last told by the server */
+let verifiedUntil = 0;
+let expiryTimer;
+let turnstileLoaded;
+
+/** Turnstile widget ids and their elements */
+const widgets = new Map();
+
+function isVerified() {
+    return Date.now() < verifiedUntil;
+}
+
+/** Record the seconds left on the visitor's pass and update every thread */
+function setVerified(seconds) {
+    verifiedUntil = seconds > 0 ? Date.now() + seconds * 1000 : 0;
+    clearTimeout(expiryTimer);
+
+    if (seconds > 0) {
+        expiryTimer = setTimeout(expire, seconds * 1000);
+    }
+
+    for (const container of containers) {
+        gate(container);
+    }
+}
+
+/** The pass has expired: disable the controls again and run a new check */
+function expire() {
+    forgetRemovedWidgets();
+
+    for (const id of widgets.keys()) {
+        window.turnstile.reset(id);
+    }
+
+    setVerified(0);
+}
+
+/** Forget the widgets of threads that were rendered again */
+function forgetRemovedWidgets() {
+    for (const [id, element] of widgets) {
+        if (!element.isConnected) {
+            widgets.delete(id);
+
+            try {
+                window.turnstile.remove(id);
+            } catch {
+                // Turnstile may have noticed already
+            }
+        }
+    }
+}
+
+/** Enable or disable the controls that need a pass, and show the check if needed */
+function gate(container) {
+    const thread = container.querySelector('.hashover-thread');
+
+    if (!thread?.dataset.hashoverTurnstile) {
+        return;
+    }
+
+    const verified = isVerified();
+
+    for (const control of container.querySelectorAll('[data-hashover-gated]')) {
+        const note = control.dataset.hashoverGated;
+        const describedBy = (control.getAttribute('aria-describedby') ?? '').split(' ').filter((id) => id && id !== note);
+
+        if (verified) {
+            control.removeAttribute('aria-disabled');
+        } else {
+            control.setAttribute('aria-disabled', 'true');
+            describedBy.push(note);
+        }
+
+        if (describedBy.length > 0) {
+            control.setAttribute('aria-describedby', describedBy.join(' '));
+        } else {
+            control.removeAttribute('aria-describedby');
+        }
+    }
+
+    for (const note of container.querySelectorAll('.hashover-gate-note')) {
+        note.hidden = verified;
+    }
+
+    const box = container.querySelector('#hashover-verify');
+
+    // Once verified, the check stays visible (showing its success) until the
+    // thread is rendered again, so the form doesn't jump under the pointer
+    if (box && !verified) {
+        box.hidden = false;
+        showWidget(container, thread, box);
+    }
+}
+
+function loadTurnstile() {
+    turnstileLoaded ??= new Promise((resolve, reject) => {
+        if (window.turnstile) {
+            resolve(window.turnstile);
+            return;
+        }
+
+        const script = document.createElement('script');
+        script.src = turnstileScript;
+        script.onload = () => (window.turnstile ? resolve(window.turnstile) : reject(new Error('Turnstile is missing')));
+        script.onerror = () => reject(new Error('Turnstile could not be loaded from ' + turnstileScript));
+        document.head.append(script);
+    }).catch((error) => {
+        // Let a later attempt try again
+        turnstileLoaded = undefined;
+        throw error;
+    });
+
+    return turnstileLoaded;
+}
+
+async function showWidget(container, thread, box) {
+    const slot = box.querySelector('[data-hashover-turnstile-widget]');
+    const status = box.querySelector('[data-hashover-verify-status]');
+
+    if (!slot || slot.dataset.hashoverWidget !== undefined) {
+        return;
+    }
+
+    slot.dataset.hashoverWidget = '';
+    status.textContent = text(container, 'verifyLoading');
+
+    let turnstile;
+
+    try {
+        turnstile = await loadTurnstile();
+    } catch (error) {
+        status.textContent = text(container, 'verifyUnavailable');
+        delete slot.dataset.hashoverWidget;
+        console.error('HashOver:', error);
+        return;
+    }
+
+    forgetRemovedWidgets();
+
+    if (!slot.isConnected) {
+        return;
+    }
+
+    status.textContent = '';
+    let retries = 0;
+
+    const id = turnstile.render(slot, {
+        sitekey: thread.dataset.hashoverTurnstile,
+        action: 'hashover',
+        language: thread.lang || 'auto',
+        theme: theme(thread),
+        // The normal widget needs 300 pixels
+        size: slot.clientWidth < 300 ? 'compact' : 'flexible',
+        // The token is sent by verify(), not with the comment form
+        'response-field': false,
+        callback: (token) => verify(container, slot, status, token, () => {
+            // A rejected token may be followed by a good one, but don't loop
+            if (retries++ < 2) {
+                turnstile.reset(id);
+            }
+        }),
+        'error-callback': () => {
+            status.textContent = text(container, 'verifyFailed');
+            announce(container, status.textContent);
+        },
+    });
+
+    widgets.set(id, slot);
+}
+
+/**
+ * Light or dark widget, following the page like the stylesheet does (its
+ * colours derive from the text colour) rather than the browser's preference
+ */
+function theme(element) {
+    const rgb = getComputedStyle(element).color.match(/^rgba?\((\d+), (\d+), (\d+)/);
+
+    if (!rgb) {
+        return 'auto';
+    }
+
+    const [red, green, blue] = rgb.slice(1).map(Number);
+
+    return 0.299 * red + 0.587 * green + 0.114 * blue > 128 ? 'dark' : 'light';
+}
+
+/** Exchange a Turnstile token for a pass */
+async function verify(container, slot, status, token, retry) {
+    const form = slot.closest('form');
+    const data = new FormData();
+    data.set('action', 'verify');
+    data.set('token', token);
+
+    for (const name of ['url', 'title', 'csrf', 'language']) {
+        data.set(name, form.querySelector(`input[name="${name}"]`)?.value ?? '');
+    }
+
+    try {
+        const action = new URL(form.getAttribute('action') ?? '', location.href);
+        const result = await request(action, { method: 'POST', body: data, headers: { Accept: 'application/json' } });
+
+        if (!result.ok) {
+            status.textContent = result.message;
+            announce(container, result.message);
+
+            if (result.error === 'error.verification_failed') {
+                retry();
+            }
+
+            return;
+        }
+
+        status.textContent = '';
+        setVerified(result.remaining);
+        announce(container, result.message);
+    } catch (error) {
+        status.textContent = text(container, 'verifyFailed');
+        announce(container, status.textContent);
+        console.error('HashOver:', error);
+    }
+}
+
 function attach(container) {
     container.addEventListener('submit', (event) => {
         const form = event.target.closest('form[data-hashover-form]');
 
         if (form) {
             event.preventDefault();
-            submit(container, form, event.submitter);
+
+            if (!event.submitter?.matches('[aria-disabled="true"]')) {
+                submit(container, form, event.submitter);
+            }
         }
     });
 
@@ -300,6 +546,16 @@ function attach(container) {
     });
 
     container.addEventListener('click', (event) => {
+        // Controls waiting for the security check lead to it instead
+        const gated = event.target.closest('[data-hashover-gated][aria-disabled="true"]');
+
+        if (gated) {
+            event.preventDefault();
+            focus(container.querySelector('#hashover-verify'));
+            announce(container, container.querySelector('#' + CSS.escape(gated.dataset.hashoverGated))?.textContent.trim());
+            return;
+        }
+
         const target = event.target.closest('button[data-hashover-open], a[data-hashover-cancel], a[data-hashover-sort], a.hashover-image');
 
         if (!target) {
@@ -343,7 +599,7 @@ async function updateCounts() {
     }
 }
 
-for (const container of new Set(document.querySelectorAll('#hashover, [data-hashover]'))) {
+for (const container of containers) {
     attach(container);
 
     if (container.querySelector('.hashover-thread')) {

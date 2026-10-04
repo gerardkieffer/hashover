@@ -7,18 +7,22 @@ namespace HashOver;
 use HashOver\Content\Formatter;
 use HashOver\Content\Website;
 use HashOver\Exception\UserError;
+use HashOver\Http\Client;
 use HashOver\Http\Cookie;
 use HashOver\Http\Request;
 use HashOver\Http\Response;
+use HashOver\Http\StreamClient;
 use HashOver\Mail\Mailer;
 use HashOver\Mail\Notifier;
 use HashOver\Mail\PhpMailer;
 use HashOver\Model\Comment;
 use HashOver\Page\Page;
+use HashOver\Security\Akismet;
 use HashOver\Security\Auth;
 use HashOver\Security\EmailCipher;
 use HashOver\Security\FormGuard;
 use HashOver\Security\Keys;
+use HashOver\Security\Turnstile;
 use HashOver\Security\Visitor;
 use HashOver\Storage\CommentRepository;
 use HashOver\Storage\Database;
@@ -36,7 +40,7 @@ use HashOver\View\Translator;
  * HashOver's request handler: renders threads and processes form submissions.
  *
  * GET  ?action=thread|form|count|rss
- * POST action=comment|edit|delete|like|login|logout
+ * POST action=comment|edit|delete|like|login|logout|verify
  *
  * Either may carry "language" to answer in another of Config::LANGUAGES than
  * the configured one, e.g. for the translations of a multilingual page.
@@ -52,18 +56,22 @@ final readonly class Application
     private EmailCipher $cipher;
     private FormGuard $formGuard;
     private Visitor $visitor;
+    private Turnstile $turnstile;
+    private Akismet $akismet;
     private Translator $translator;
     private Renderer $renderer;
     private Notifier $notifier;
 
     /**
      * @param string|null $language interface language; defaults to the configured one
+     * @param Client|null $http for Akismet and Turnstile
      */
     public function __construct(
         private Config $config,
         private Database $database,
         private ?Mailer $mailer = null,
         ?string $language = null,
+        private ?Client $http = null,
     ) {
         $keys = new Keys($config);
         $this->threads = new ThreadRepository($database);
@@ -73,6 +81,8 @@ final readonly class Application
         $this->cipher = new EmailCipher($keys);
         $this->formGuard = new FormGuard($config, $keys);
         $this->visitor = new Visitor($config, $keys);
+        $this->turnstile = new Turnstile($config, $keys, $this->visitor, $http ?? new StreamClient());
+        $this->akismet = new Akismet($config, $http ?? new StreamClient());
         $this->translator = new Translator($language ?? $config->language);
         $this->renderer = new Renderer($config, $this->translator, new DateFormatter($this->translator, $config->timezone, $config->relativeDates), new Formatter(), $this->cipher);
         // The site owner is always written to in the configured language
@@ -102,7 +112,7 @@ final readonly class Application
             return $this;
         }
 
-        return new self($this->config, $this->database, $this->mailer, $language);
+        return new self($this->config, $this->database, $this->mailer, $language, $this->http);
     }
 
     public function handle(Request $request): Response
@@ -215,6 +225,7 @@ final readonly class Application
                 'like' => $this->like($request, $page),
                 'login' => $this->login($request, $page),
                 'logout' => $this->logout($request, $page),
+                'verify' => $this->verify($request, $page),
                 default => throw new UserError('error.invalid_request', 400),
             };
         } catch (UserError $error) {
@@ -224,6 +235,7 @@ final readonly class Application
 
     private function postComment(Request $request, Page $page): Response
     {
+        $this->turnstile->requirePass($request);
         $visitor = $this->visitor->id($request);
         $this->rateLimiter->hit('comment', $visitor);
         $this->formGuard->check($request);
@@ -252,6 +264,10 @@ final readonly class Application
 
         if ($this->visitor->isKnownSpammer($request)) {
             throw new UserError('error.blocked', 403);
+        }
+
+        if (!$actingAdmin && $this->akismet->isSpam($request, $page, ['name' => $name, 'email' => $email, 'website' => $website, 'body' => $body, 'reply' => $parent !== null])) {
+            throw new UserError('error.spam_filter', 403, 'body');
         }
 
         $thread = $this->threads->findOrCreate($page, $this->singleLine($request->post('title'), 200));
@@ -288,6 +304,7 @@ final readonly class Application
 
     private function editComment(Request $request, Page $page): Response
     {
+        $this->turnstile->requirePass($request);
         $comment = $this->ownComment($request, $page);
         $name = $this->singleLine($request->post('name'), $this->config->maxNameLength);
         $actingAdmin = $this->auth->isAdmin($request);
@@ -308,6 +325,17 @@ final readonly class Application
             $email = $this->email($request->post('email'));
             $fields['email'] = $this->cipher->encrypt($email);
             $fields['email_hash'] = $this->cipher->fingerprint($email);
+        }
+
+        // The administrator's edits aren't checked
+        if (!$actingAdmin && $this->akismet->isSpam($request, $page, [
+            'name' => $name,
+            'email' => $this->email($request->post('email')),
+            'website' => $fields['website'],
+            'body' => $fields['body'],
+            'reply' => $comment->isReply(),
+        ])) {
+            throw new UserError('error.spam_filter', 403, 'body');
         }
 
         $this->comments->update($comment->id, $fields);
@@ -335,6 +363,7 @@ final readonly class Application
 
     private function like(Request $request, Page $page): Response
     {
+        $this->turnstile->requirePass($request);
         $comment = $this->findComment($request->post('id'), $page);
         $authorEmail = $this->cipher->fingerprint($this->authorCookieValues($request)['email']);
 
@@ -389,6 +418,23 @@ final readonly class Application
     private function logout(Request $request, Page $page): Response
     {
         return $this->success($request, $page, 'message.logged_out', 'hashover', $this->auth->logoutCookies($request));
+    }
+
+    /** Check a Turnstile token sent by hashover.js and hand out a pass */
+    private function verify(Request $request, Page $page): Response
+    {
+        $this->rateLimiter->hit('verify', $this->visitor->id($request));
+        $cookie = $this->turnstile->verify($request, $request->post('token'), $this->auth->secure($request));
+
+        if (!$request->wantsJson()) {
+            return Response::redirect($page->urlWith(['hashover_message' => 'message.verified'], 'hashover-form'))->withCookie($cookie);
+        }
+
+        return Response::json([
+            'ok' => true,
+            'message' => $this->translator->translate('message.verified'),
+            'remaining' => $this->config->turnstilePassMinutes * 60,
+        ])->withCookie($cookie);
     }
 
     // Helpers
@@ -458,6 +504,10 @@ final readonly class Application
             'rss_url' => $this->config->baseUrl . 'index.php?action=rss&url=' . rawurlencode($page->url) . $this->languageParameter(),
             'count_text' => $this->countText($view->commentCount, $view->replyCount),
             'honeypot' => FormGuard::HONEYPOT_FIELD,
+            'turnstile' => $this->turnstile->isEnabled() ? [
+                'site_key' => $this->config->turnstileSiteKey,
+                'remaining' => $this->turnstile->remaining($request),
+            ] : null,
         ];
     }
 
@@ -515,7 +565,7 @@ final readonly class Application
         $text = $this->translator->translate($error->key, $error->parameters);
 
         if ($request->wantsJson()) {
-            return Response::json(['ok' => false, 'message' => $text, 'field' => $error->field], $error->status);
+            return Response::json(['ok' => false, 'message' => $text, 'field' => $error->field, 'error' => $error->key], $error->status);
         }
 
         // Without a known page to return to, show the message itself
