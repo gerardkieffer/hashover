@@ -1,3 +1,33 @@
+Changes for PHP 8.4 and security hardening 2026-10-04
+--------------------------------------------------------------------------------
+* Runs on PHP 8.1+ (tested with 8.4); fixed the fatal error in "like.php" and
+  PHP 8 comparison bugs, modernized the code (strict types, typed functions).
+* Fixed many cross-site scripting issues: all output is now escaped, and data
+  in JavaScript mode is emitted as JSON.
+* Fixed path traversal in comment editing, deleting, replying and liking.
+* Passwords are hashed with password_hash(); old MD5 hashes keep working and
+  are upgraded the next time they are used.
+* E-mail addresses are encrypted with libsodium; old ones are still readable
+  and are re-encrypted when the comment is edited.
+* Passwords are no longer stored in cookies. Login and admin cookies are
+  HMAC tokens; all cookies are HttpOnly and SameSite=Lax (Secure on HTTPS).
+* Cross-site form submissions and likes are rejected; likes are POST only.
+* Nobody but the administrator may use the administrator's nickname.
+* Websites must be http(s) URLs; e-mail addresses must be valid.
+* Notification e-mails are always sent from $noreply_email.
+* Comment files are created atomically and can't overwrite each other.
+* Comment directories are only created when a comment is posted.
+* Comments are limited to $max_comment characters (settings.php).
+* stopforumspam.com is queried over HTTPS, only when posting.
+* Added .htaccess files denying access to "pages", "scripts" and data files.
+
+* Upgrade notes: keep your "secrets.php" (especially $encryption_key). Visitors
+  need to log in again. Add the new $max_comment setting to a preserved
+  "settings.php". Thread directory names now only keep the characters
+  A-Z a-z 0-9 % ~ @ , ; ( ) and "-"; URLs containing other characters may map
+  to a new directory.
+
+
 Changes by Jacob Barkdull 2019-08-06
 --------------------------------------------------------------------------------
 ... And an SEO! Version 1.0.3!

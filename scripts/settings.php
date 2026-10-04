@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 	// Copyright (C) 2014-2019 Jacob Barkdull
 	//
 	//	I, Jacob Barkdull, hereby release this work into the public domain. 
@@ -33,15 +35,14 @@
 	$ip_addrs	= 'no';						// Whether to store users' IP addresses
 	$spam_IP_check	= 'php';					// Options 'javascript' / 'php' for respective modes, or 'both'
 	$expire		= time() + 60 * 60 * 24 * 30;			// Cookies' expiration date
-	$domain		= $_SERVER['HTTP_HOST'];			// Domain name for refer checking & notifications
-	$mode		= (isset($mode)) ? $mode : 'javascript';	// Content output type
+	$domain		= $_SERVER['HTTP_HOST'] ?? 'localhost';		// Domain name for refer checking & notifications (set it explicitly, e.g. 'example.com', to not trust the Host header)
+	$mode		??= 'javascript';				// Content output type
 	$noreply_email	= 'noreply@example.com';			// E-mail used when no e-mail is given
 	$user_reply	= 'no';						// Whether given e-mails are sent as reply-to address to users
+	$max_comment	= 20000;					// Maximum comment length in characters
 
 	// Change to root directory
-	chdir(dirname(__FILE__) . '/../');
+	chdir(dirname(__DIR__));
 
 	// Timezone
 	date_default_timezone_set('America/Los_Angeles');
-
-?>

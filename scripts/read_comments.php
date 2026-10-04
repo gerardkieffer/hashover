@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 	// Copyright (C) 2014-2019 Jacob Barkdull
 	//
 	//	This program is free software: you can redistribute it and/or modify
@@ -17,17 +19,25 @@
 
 
 	// Read, count, and create deleted comment note
-	function read_comments($dir, $check) {
-		global $root_dir, $show_cmt, $cmt_count, $total_count, $subfile_count, $deleted_files, $domain, $script_query, $template, $icon_size;
-		$files = array();
+	function read_comments(string $dir, string $check): void
+	{
+		global $show_cmt, $cmt_count, $total_count, $subfile_count, $deleted_files;
+
+		$files = [];
 
 		// Read directory contents, put filenames in array, count files
-		foreach (glob($dir . '/*.xml', GLOB_NOSORT) as $file) {
-			$files[basename($file, '.xml')] = $file;
-			$subfile_count[$file] = '0';
+		foreach (glob($dir . '/*.xml', GLOB_NOSORT) ?: [] as $file) {
+			$file_id = basename($file, '.xml');
+
+			if (!is_comment_id($file_id)) {
+				continue;
+			}
+
+			$files[$file_id] = $file;
+			$subfile_count[$file] = 0;
 			$total_count++;
 
-			if (!preg_match('/-/', basename($file, '.xml'))) {
+			if (!str_contains($file_id, '-')) {
 				$cmt_count++;
 			}
 		}
@@ -36,35 +46,33 @@
 		uksort($files, 'strnatcasecmp');
 
 		foreach ($files as $file) {
+			$file_id = basename($file, '.xml');
 			$cmt_tree = '';
 
-			foreach (explode('-', basename($file, '.xml')) as $reply) {
-				for ($i = 1; $i <= $reply; $i++) {
-					if (!in_array($dir . '/' . $cmt_tree . ((!empty($cmt_tree) ? '-' : '') . $i) . '.xml', $files)) {
-						if (!in_array($dir . '/' . $cmt_tree . ((!empty($cmt_tree) ? '-' : '') . $i) . '.xml', $deleted_files)) {
-							deletion_notice($dir . '/' . $cmt_tree . ((!empty($cmt_tree) ? '-' : '') . $i) . '.xml', $show_cmt, $check); // Display notice
-							$deleted_files[] = $dir . '/' . $cmt_tree . ((!empty($cmt_tree) ? '-' : '') . $i) . '.xml';
-						}
+			foreach (explode('-', $file_id) as $reply) {
+				for ($i = 1; $i <= (int) $reply; $i++) {
+					$expected = $dir . '/' . $cmt_tree . (($cmt_tree !== '') ? '-' : '') . $i . '.xml';
+
+					if (!in_array($expected, $files, true) && !in_array($expected, $deleted_files, true)) {
+						deletion_notice($expected, $check); // Display notice
+						$deleted_files[] = $expected;
 					}
 				}
 
-				$cmt_tree .= ((!empty($cmt_tree) ? '-' : '')) . $reply;
+				$cmt_tree .= (($cmt_tree !== '') ? '-' : '') . $reply;
 			}
 
 			// Check whether to generate output
-			if (!empty($check) and $check == 'yes' or $check == 'true') {
+			if ($check === 'yes' || $check === 'true') {
 				$show_cmt = parse_comments($file, $show_cmt, 'yes');
 			}
 
 			// Count comment
-			if (preg_match('/-/', basename($file, '.xml'))) {
-				$thread_parts = explode('-', basename($file));
-				$thread = $dir . '/' . basename($file, '-' . end($thread_parts)) . '.xml';
-				$subfile_count["$thread"] = (isset($subfile_count["$thread"])) ? $subfile_count["$thread"] + 1 : 1;
+			if (str_contains($file_id, '-')) {
+				$thread = $dir . '/' . substr($file_id, 0, (int) strrpos($file_id, '-')) . '.xml';
+				$subfile_count[$thread] = ($subfile_count[$thread] ?? 0) + 1;
 			}
 
-			$subfile_count["$file"]++; // Count comment
+			$subfile_count[$file]++; // Count comment
 		}
 	}
-
-?>

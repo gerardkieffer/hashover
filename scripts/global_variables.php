@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 	// Copyright (C) 2014-2019 Jacob Barkdull
 	//
 	//	I, Jacob Barkdull, hereby release this work into the public domain. 
@@ -8,17 +10,15 @@
 	//	conditions, unless such conditions are required by law.
 
 
-	$top_likes	= array();	// For sorting top comments
-	$subfile_count	= array();	// Individual comment thread count
-	$cmt_count	= '1';		// Comment count excluding replies
-	$total_count	= '1';		// Comment count including replies
-	$deleted_cmt	= '0';		// Deleted comment count excluding replies
-	$deleted_total	= '0';		// Deleted comment count including replies
-	$show_cmt	= '';		// Will contain all comments
-	$deleted_files	= array();	// Deleted files
+	$top_likes	= [];		// For sorting top comments
+	$subfile_count	= [];		// Individual comment thread count
+	$cmt_count	= 1;		// Comment count excluding replies
+	$total_count	= 1;		// Comment count including replies
+	$deleted_cmt	= 0;		// Deleted comment count excluding replies
+	$deleted_total	= 0;		// Deleted comment count including replies
+	$show_cmt	= ($mode === 'php') ? [] : '';	// Will contain all comments
+	$deleted_files	= [];		// Deleted files
 
 	// Characters to be removed from name, email, and website fields
-	$search = array('<', '>', "\n", "\r", "\t", '&nbsp;', '&lt;', '&gt;', '"', "'", '\\');
-	$replace = array('', '', '', '', '', '', '', '', '&quot;', '&#39;', '');
-
-?>
+	$search = ['<', '>', "\n", "\r", "\t", '&nbsp;', '&lt;', '&gt;', '"', "'", '\\'];
+	$replace = ['', '', '', '', '', '', '', '', '&quot;', '&#39;', ''];
