@@ -1,0 +1,5 @@
+<form method="post" action="{{ endpoint }}" class="hashover-logout" data-hashover-form>
+    {% include '_hidden.html.twig' %}
+    <p>{{ is_admin ? t('form.logged_in_admin') : t('form.logged_in') }}</p>
+    <button type="submit" name="action" value="logout">{{ t('form.logout') }}</button>
+</form>

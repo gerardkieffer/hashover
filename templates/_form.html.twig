@@ -1,0 +1,130 @@
+{#
+ # Comment forms.
+ # kind: "comment" (new comment), "reply", "edit" or "delete" (confirmation)
+ # target: the comment replied to, edited or deleted
+ # form_id: unique id prefix for the form and its fields
+ #}
+{% set active = (kind == 'comment' and not reply_to and not editing and not deleting)
+    or (kind == 'reply' and reply_to and reply_to.id == target.id)
+    or (kind == 'edit' and editing and editing.id == target.id)
+    or (kind == 'delete' and deleting and deleting.id == target.id) %}
+{% set error = active and message and message starts with 'error.' ? message : null %}
+{% set field_error = error ? error_field : null %}
+{% set heading_level = kind == 'comment' ? 3 : 4 %}
+
+<form method="post" action="{{ endpoint }}" id="{{ form_id }}" class="hashover-form hashover-form-{{ kind }}"
+    data-hashover-form aria-labelledby="{{ form_id }}-heading">
+
+    <h{{ heading_level }} id="{{ form_id }}-heading" class="hashover-form-heading" tabindex="-1">
+        {%- if kind == 'comment' -%}
+            {{ config.showPageTitle and title ? t('form.heading_on', {title: title}) : t('form.heading') }}
+        {%- elseif kind == 'reply' -%}
+            {{ t('form.heading_reply', {name: author(target)}) }}
+        {%- elseif kind == 'edit' -%}
+            {{ t('form.heading_edit') }}
+        {%- else -%}
+            {{ t('form.heading_delete') }}
+        {%- endif -%}
+    </h{{ heading_level }}>
+
+    <p class="hashover-error" id="{{ form_id }}-error" role="alert" {%- if not error %} hidden{% endif %}>
+        {%- if error %}{{ t(error, {maximum: config.maxCommentLength}) }}{% endif -%}
+    </p>
+
+    {% include '_hidden.html.twig' %}
+    <input type="hidden" name="ts" value="{{ timestamp }}">
+
+    {% if kind == 'delete' %}
+        <input type="hidden" name="action" value="delete">
+        <input type="hidden" name="id" value="{{ target.id }}">
+        <input type="hidden" name="confirm" value="1">
+        <p>{{ t('form.delete_warning') }}</p>
+        <div class="hashover-buttons">
+            <button type="submit" class="hashover-danger">{{ t('form.delete_confirm') }}</button>
+            <a href="{{ page.url }}#{{ target.anchor() }}" data-hashover-cancel>{{ t('form.cancel') }}</a>
+        </div>
+    {% else %}
+        {% if kind == 'reply' %}
+            <input type="hidden" name="parent" value="{{ target.id }}">
+        {% elseif kind == 'edit' %}
+            <input type="hidden" name="id" value="{{ target.id }}">
+        {% endif %}
+
+        {% set body = kind == 'edit' ? target.body : '' %}
+        <div class="hashover-field">
+            <label for="{{ form_id }}-body">{{ kind == 'reply' ? t('form.reply') : t('form.comment') }} <span class="hashover-required">{{ t('form.required') }}</span></label>
+            <textarea id="{{ form_id }}-body" name="body" rows="{{ config.commentRows }}" required maxlength="{{ config.maxCommentLength }}"
+                aria-describedby="{{ form_id }}-body-hint{% if field_error == 'body' %} {{ form_id }}-error{% endif %}"
+                {%- if field_error == 'body' %} aria-invalid="true"{% endif %}>{{ body }}</textarea>
+            <p class="hashover-hint" id="{{ form_id }}-body-hint">{{ t('form.formatting_hint') }}</p>
+        </div>
+
+        <fieldset class="hashover-details">
+            <legend>{{ kind == 'edit' ? t('form.details_edit') : t('form.details') }}</legend>
+
+            {% set values = kind == 'edit'
+                ? {name: target.name, email: editing_email, website: target.website}
+                : author %}
+
+            <div class="hashover-field">
+                <label for="{{ form_id }}-name">{{ t('form.name') }}</label>
+                <input type="text" id="{{ form_id }}-name" name="name" value="{{ values.name }}" maxlength="{{ config.maxNameLength }}" autocomplete="nickname"
+                    {%- if field_error == 'name' %} aria-invalid="true" aria-describedby="{{ form_id }}-error"{% endif %}>
+            </div>
+
+            {% if kind != 'edit' or editing_email or (not is_admin) %}
+                <div class="hashover-field">
+                    <label for="{{ form_id }}-email">{{ t('form.email') }}</label>
+                    <input type="email" id="{{ form_id }}-email" name="email" value="{{ values.email }}" maxlength="254" autocomplete="email"
+                        aria-describedby="{{ form_id }}-email-hint{% if field_error == 'email' %} {{ form_id }}-error{% endif %}"
+                        {%- if field_error == 'email' %} aria-invalid="true"{% endif %}>
+                    <p class="hashover-hint" id="{{ form_id }}-email-hint">{{ t('form.email_hint') }}</p>
+                </div>
+            {% endif %}
+
+            <div class="hashover-field">
+                <label for="{{ form_id }}-website">{{ t('form.website') }}</label>
+                <input type="url" id="{{ form_id }}-website" name="website" value="{{ values.website }}" maxlength="500" autocomplete="url"
+                    {%- if field_error == 'website' %} aria-invalid="true" aria-describedby="{{ form_id }}-error"{% endif %}>
+            </div>
+
+            {% if kind != 'edit' %}
+                <div class="hashover-field">
+                    <label for="{{ form_id }}-password">{{ t('form.password') }}</label>
+                    <input type="password" id="{{ form_id }}-password" name="password" maxlength="200" autocomplete="current-password"
+                        aria-describedby="{{ form_id }}-password-hint{% if field_error == 'password' %} {{ form_id }}-error{% endif %}"
+                        {%- if field_error == 'password' %} aria-invalid="true"{% endif %}>
+                    <p class="hashover-hint" id="{{ form_id }}-password-hint">{{ t('form.password_hint') }}</p>
+                </div>
+            {% endif %}
+
+            <div class="hashover-field hashover-checkbox">
+                <input type="checkbox" id="{{ form_id }}-notify" name="notify" value="1"
+                    {%- if kind != 'edit' or target.notify %} checked{% endif %}>
+                <label for="{{ form_id }}-notify">{{ t('form.notify') }}</label>
+            </div>
+        </fieldset>
+
+        <div hidden>
+            <label for="{{ form_id }}-hp">{{ t('form.honeypot') }}</label>
+            <input type="text" id="{{ form_id }}-hp" name="{{ honeypot }}" tabindex="-1" autocomplete="off">
+        </div>
+
+        <div class="hashover-buttons">
+            {% if kind == 'comment' %}
+                <button type="submit" name="action" value="comment" class="hashover-primary">{{ t('form.post') }}</button>
+                {% if not is_logged_in %}
+                    <button type="submit" name="action" value="login" formnovalidate aria-describedby="{{ form_id }}-login-hint">{{ t('form.login') }}</button>
+                    <p class="hashover-hint" id="{{ form_id }}-login-hint">{{ t('form.login_hint') }}</p>
+                {% endif %}
+            {% elseif kind == 'reply' %}
+                <button type="submit" name="action" value="comment" class="hashover-primary">{{ t('form.post_reply') }}</button>
+                <a href="{{ page.url }}#{{ target.anchor() }}" data-hashover-cancel>{{ t('form.cancel') }}</a>
+            {% else %}
+                <button type="submit" name="action" value="edit" class="hashover-primary">{{ t('form.save') }}</button>
+                <button type="submit" name="action" value="delete" formnovalidate class="hashover-danger" data-hashover-delete>{{ t('form.delete') }}</button>
+                <a href="{{ page.url }}#{{ target.anchor() }}" data-hashover-cancel>{{ t('form.cancel') }}</a>
+            {% endif %}
+        </div>
+    {% endif %}
+</form>

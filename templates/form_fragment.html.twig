@@ -1,0 +1,8 @@
+{# Reply, edit or delete form for one comment, loaded by hashover.js #}
+{% if reply_to %}
+    {% include '_form.html.twig' with {kind: 'reply', target: reply_to, form_id: 'hashover-form-' ~ reply_to.id} %}
+{% elseif deleting %}
+    {% include '_form.html.twig' with {kind: 'delete', target: deleting, form_id: 'hashover-form-' ~ deleting.id} %}
+{% elseif editing %}
+    {% include '_form.html.twig' with {kind: 'edit', target: editing, form_id: 'hashover-form-' ~ editing.id} %}
+{% endif %}

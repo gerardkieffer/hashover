@@ -1,9 +1,12 @@
-# Strict analysis of new code; the legacy procedural scripts are analysed
-# separately by phpstan-legacy.neon until they are replaced by src/.
+includes:
+    - vendor/phpstan/phpstan-strict-rules/rules.neon
+
 parameters:
-	level: 10
-	paths:
-		- src
-		- tests
-	bootstrapFiles:
-		- tests/bootstrap.php
+    level: 10
+    paths:
+        - src
+        - tests
+        - public/index.php
+        - embed.php
+        - bin/hashover
+        - locales

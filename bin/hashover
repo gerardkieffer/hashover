@@ -1,0 +1,12 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use HashOver\Cli\Console;
+
+require dirname(__DIR__) . '/vendor/autoload.php';
+
+$arguments = is_array($_SERVER['argv'] ?? null) ? array_values(array_filter($_SERVER['argv'], is_string(...))) : [];
+
+exit(new Console(dirname(__DIR__))->run(array_slice($arguments, 1)));
