@@ -91,7 +91,7 @@ declare(strict_types=1);
 		$website = safe_url(html_entity_decode((string) $read_cmt->website, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
 
 		if ($website === '') {
-			if (preg_match('/^@[a-zA-Z0-9_@]{1,29}$/', $name) === 1) {
+			if (preg_match('/^@[a-zA-Z0-9_@]{1,29}$/D', $name) === 1) {
 				$profile = (preg_match('/@identica/i', $name) !== 1) ? 'twitter.com/' : 'identi.ca/';
 				$variable_name = $name_at . '<a rel="nofollow noopener" id="opt-website-' . $permalink . '" href="https://' . $profile . h(str_replace(['@identica', '@'], '', $name)) . '" target="_blank">' . $display_name . '</a>';
 			} else {

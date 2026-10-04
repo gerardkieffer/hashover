@@ -1,0 +1,9 @@
+# Strict analysis of new code; the legacy procedural scripts are analysed
+# separately by phpstan-legacy.neon until they are replaced by src/.
+parameters:
+	level: 10
+	paths:
+		- src
+		- tests
+	bootstrapFiles:
+		- tests/bootstrap.php

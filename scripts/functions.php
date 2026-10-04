@@ -70,8 +70,8 @@ declare(strict_types=1);
 	{
 		$domain = strtolower(trim($domain));
 
-		if (preg_match('/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?::\d{1,5})?$/', $domain) === 1
-		    || preg_match('/^\[[0-9a-f:.]+\](?::\d{1,5})?$/', $domain) === 1) {
+		if (preg_match('/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?::\d{1,5})?$/D', $domain) === 1
+		    || preg_match('/^\[[0-9a-f:.]+\](?::\d{1,5})?$/D', $domain) === 1) {
 			return $domain;
 		}
 
@@ -148,13 +148,13 @@ declare(strict_types=1);
 	// Comment identifiers look like "1", "1-2", "1-2-3", and so on
 	function is_comment_id(string $id): bool
 	{
-		return preg_match('/^[1-9]\d{0,5}(?:-[1-9]\d{0,5}){0,30}$/', $id) === 1;
+		return preg_match('/^[1-9]\d{0,5}(?:-[1-9]\d{0,5}){0,30}$/D', $id) === 1;
 	}
 
 	// Comment thread directory names are restricted to these characters
 	function is_thread_name(string $name): bool
 	{
-		return preg_match('/^[A-Za-z0-9%~@,;()-]{1,200}$/', $name) === 1;
+		return preg_match('/^[A-Za-z0-9%~@,;()-]{1,200}$/D', $name) === 1;
 	}
 
 	// Domain attribute for cookies, shared by "www." and bare domain

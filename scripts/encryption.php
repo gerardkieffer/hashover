@@ -128,7 +128,7 @@ declare(strict_types=1);
 			return password_verify($password, $stored);
 		}
 
-		return preg_match('/^[a-f0-9]{32}$/', $stored) === 1
+		return preg_match('/^[a-f0-9]{32}$/D', $stored) === 1
 			&& hash_equals($stored, md5(legacy_xor($password)));
 	}
 

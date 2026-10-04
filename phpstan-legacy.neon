@@ -1,0 +1,19 @@
+# Transitional analysis of the procedural 1.x code in scripts/.
+# Those files share variables through include(), which PHPStan cannot
+# follow, and compare hard-coded 'yes'/'no' settings. Only these two kinds
+# of findings are tolerated, and only until phase 2 replaces scripts/.
+parameters:
+	level: 5
+	paths:
+		- comments.php
+		- scripts
+	ignoreErrors:
+		-
+			identifier: variable.undefined
+			path: *
+		-
+			identifier: identical.alwaysTrue
+			path: scripts/php-mode.php
+		-
+			identifier: booleanAnd.alwaysTrue
+			path: scripts/php-mode.php

@@ -1,0 +1,45 @@
+{
+	"name": "hashover/hashover",
+	"description": "Self-hosted, privacy-friendly comment system for PHP websites",
+	"type": "project",
+	"license": "AGPL-3.0-or-later",
+	"require": {
+		"php": ">=8.2",
+		"ext-json": "*",
+		"ext-libxml": "*",
+		"ext-mbstring": "*",
+		"ext-simplexml": "*"
+	},
+	"suggest": {
+		"ext-sodium": "Preferred for encrypting stored e-mail addresses (falls back to ext-openssl)"
+	},
+	"require-dev": {
+		"phpunit/phpunit": "^11.5",
+		"phpstan/phpstan": "^2.1"
+	},
+	"autoload": {
+		"psr-4": {
+			"HashOver\\": "src/"
+		}
+	},
+	"autoload-dev": {
+		"psr-4": {
+			"HashOver\\Tests\\": "tests/"
+		}
+	},
+	"scripts": {
+		"test": "phpunit",
+		"analyse": [
+			"phpstan analyse --no-progress --memory-limit=512M",
+			"phpstan analyse --no-progress --memory-limit=512M -c phpstan-legacy.neon"
+		],
+		"check": [
+			"@analyse",
+			"@test"
+		]
+	},
+	"config": {
+		"sort-packages": true,
+		"platform-check": true
+	}
+}

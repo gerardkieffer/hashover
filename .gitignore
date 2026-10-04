@@ -2,3 +2,5 @@
 pages/*
 !pages/.gitkeep
 !pages/.htaccess
+vendor/
+.phpunit.cache/

@@ -34,7 +34,7 @@ declare(strict_types=1);
 	// Comment permalinks look like "c1", "c1r2", and "c1r2_pop"
 	function is_permalink(string $permalink): bool
 	{
-		return preg_match('/^c[1-9]\d{0,5}(?:r[1-9]\d{0,5}){0,30}(?:_pop)?$/', $permalink) === 1;
+		return preg_match('/^c[1-9]\d{0,5}(?:r[1-9]\d{0,5}){0,30}(?:_pop)?$/D', $permalink) === 1;
 	}
 
 	// Get full page URL or Canonical URL

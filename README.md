@@ -233,3 +233,17 @@ The value of `$spam_IP_check` determines in which mode(s) visitor IP address spa
 **Tutorials**
 
 [Implementing the HashOver open source commenting system within Pelican](http://moparx.com/2014/03/implementing-the-hashover-open-source-commenting-system-within-pelican/)
+
+Development
+---
+
+Requires PHP 8.2+ with the `curl` extension for the test suite, and [Composer](https://getcomposer.org/).
+
+```
+composer install
+composer check      # static analysis + all tests
+composer test       # tests only
+composer analyse    # PHPStan only
+```
+
+The integration tests start PHP's built-in web server on a temporary copy of HashOver and exercise it over HTTP, including the security checks described in `SECURITY-AUDIT.md`. See `ROADMAP.md` for the HashOver 2 plan.
