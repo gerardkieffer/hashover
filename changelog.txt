@@ -15,7 +15,11 @@ the security design.
 * Privacy: Gravatar, IP storage and stopforumspam are opt-in; IP addresses
   are forgotten after a retention period; likes use a keyed hash.
 * Comment counts, RSS feeds, sorting, popular comments, notifications,
-  editing and deleting kept; French, Spanish and Japanese fully translated.
+  editing and deleting kept; French, German, Spanish and Japanese fully
+  translated.
+* Per-page interface language ("language" parameter, Embed::thread()
+  argument or data-hashover-language), so translations of a page can share
+  one thread.
 * Removed: Identi.ca/Twitter name links, user-agent sniffing, "count_link"
   script (use data-hashover-count), HTML-file templates (use Twig).
 * bin/hashover: setup, check, hash-password, purge-ips.

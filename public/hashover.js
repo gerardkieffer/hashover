@@ -7,9 +7,11 @@
  *     <script type="module" src="/hashover/hashover.js"></script>
  *
  * Options, as attributes of the container:
- *   data-hashover-url   canonical URL of the page (default: <link rel="canonical"> or the address)
+ *   data-hashover-url       canonical URL of the page (default: <link rel="canonical"> or the address)
+ *   data-hashover-language  interface language, e.g. "fr" (default: the configured one)
  *
- * Comment counts: <span data-hashover-count="https://example.com/page"></span>
+ * Comment counts: <span data-hashover-count="https://example.com/page"></span>,
+ * with an optional data-hashover-language as well.
  *
  * @license AGPL-3.0-or-later
  */
@@ -51,6 +53,10 @@ function apiUrl(container, parameters) {
     const url = new URL(endpoint);
     url.searchParams.set('url', pageUrl(container));
     url.searchParams.set('title', document.title);
+
+    if (container.dataset.hashoverLanguage) {
+        url.searchParams.set('language', container.dataset.hashoverLanguage);
+    }
 
     for (const [name, value] of Object.entries(parameters)) {
         url.searchParams.set(name, value);
@@ -323,6 +329,10 @@ async function updateCounts() {
         const url = new URL(endpoint);
         url.searchParams.set('action', 'count');
         url.searchParams.set('url', new URL(element.dataset.hashoverCount || location.href, location.href).href);
+
+        if (element.dataset.hashoverLanguage) {
+            url.searchParams.set('language', element.dataset.hashoverLanguage);
+        }
 
         try {
             element.textContent = (await request(url, { headers: { Accept: 'application/json' } })).text;

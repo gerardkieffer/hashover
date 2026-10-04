@@ -44,6 +44,8 @@ final class TranslatorTest extends TestCase
         self::assertSame('0 comments', new Translator('en')->plural('count.comments', 0));
         self::assertSame('0 commentaire', new Translator('fr')->plural('count.comments', 0));
         self::assertSame('2 commentaires', new Translator('fr')->plural('count.comments', 2));
+        self::assertSame('0 Kommentare', new Translator('de')->plural('count.comments', 0));
+        self::assertSame('1 Kommentar', new Translator('de')->plural('count.comments', 1));
         self::assertSame('1 件のコメント', new Translator('ja')->plural('count.comments', 1));
     }
 
