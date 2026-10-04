@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 	// Copyright (C) 2014-2019 Jacob Barkdull
 	//
 	//	I, Jacob Barkdull, hereby release this work into the public domain. 
@@ -24,27 +26,22 @@
 	//	service(s), and/or political ideology.
 
 
-	$encryption_key		= '8CharKey';			// Unique 8 to 32 character encryption key
+	//
+	//	The encryption key protects stored e-mail addresses and login
+	//	cookies, use a long random value, for example the output of:
+	//
+	//		php -r 'echo bin2hex(random_bytes(16)), PHP_EOL;'
+	//
+	//	Changing the key of an existing installation makes stored e-mail
+	//	addresses unreadable and logs everyone out.
+	//
+	//	The admin password may be given either as plain text or as a hash
+	//	generated with, for example:
+	//
+	//		php -r 'echo password_hash("your password", PASSWORD_DEFAULT), PHP_EOL;'
+
+
+	$encryption_key		= '8CharKey';			// Unique random encryption key, at least 8 characters (32 recommended)
 	$notification_email	= 'example@example.com';	// E-mail for notification of new comments
-	$admin_nickname		= 'admin';			// Nickname with admin rights (must be title-cased)
-	$admin_password		= 'passwd';			// Password to gain admin rights
-
-	// Display source code without giving away encryption key
-	if (isset($_GET['source']) and basename($_SERVER['PHP_SELF']) == basename(__FILE__)) {
-		header("Content-Type: text/plain");
-		echo '<?php' . PHP_EOL . PHP_EOL;
-		echo "\t" . '// Copyright (C) 2014 Jacob Barkdull' . PHP_EOL;
-		echo "\t" . '//' . PHP_EOL;
-		echo "\t" . '//' . "\t" . 'I, Jacob Barkdull, hereby release this work into the public domain.' . PHP_EOL;
-		echo "\t" . '//' . "\t" . 'This applies worldwide. If this is not legally possible, I grant any' . PHP_EOL;
-		echo "\t" . '//' . "\t" . 'entity the right to use this work for any purpose, without any' . PHP_EOL;
-		echo "\t" . '//' . "\t" . 'conditions, unless such conditions are required by law.' . PHP_EOL . PHP_EOL . PHP_EOL;
-
-		echo "\t" . '$encryption_key' . "\t\t" . '= \'8CharKey\';' . "\t\t\t" . '// Unique 8 to 32 character encryption key' . PHP_EOL;
-		echo "\t" . '$notification_email' . "\t" . '= \'example@example.com\';' . "\t" . '// E-mail for notification of new comments' . PHP_EOL;
-		echo "\t" . '$admin_nickname' . "\t\t" . '= \'admin\';' . "\t\t\t" . '// Nickname with admin rights (must be title-cased)' . PHP_EOL;
-		echo "\t" . '$admin_password' . "\t\t" . '= \'passwd\';' . "\t\t\t" . '// Password to gain admin rights' . PHP_EOL . PHP_EOL;
-		echo '?>';
-	}
-
-?>
+	$admin_nickname		= 'admin';			// Nickname with admin rights
+	$admin_password		= 'passwd';			// Password (or password_hash() hash) to gain admin rights

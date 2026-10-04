@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 	// Copyright (C) 2014-2019 Jacob Barkdull
 	//
 	//	This program is free software: you can redistribute it and/or modify
@@ -16,27 +18,122 @@
 	//	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-	// Encryption method for storing e-mails
-	function encrypt($string) {
+	// Prefix identifying e-mails encrypted with authenticated encryption
+	const EMAIL_CIPHER_PREFIX = 'v2:';
+
+	// Legacy XOR obfuscation used by HashOver 1.0.x for e-mails and passwords,
+	// only kept to read and upgrade existing comment files
+	function legacy_xor(string $string): string
+	{
 		global $encryption_key;
 
-		$str = $string . '';
-		$encryption_key = str_replace(chr(32), '', $encryption_key);
-		if (strlen($encryption_key) < 8) exit(jsAddSlashes('<b>HashOver - Error:</b> Key error, make sure it\'s at least 8 characters long.', 'single'));
-		$kl = strlen($encryption_key) < 32 ? strlen($encryption_key) : 32;
-		$k = array();
+		$key = str_replace(' ', '', $encryption_key);
+		$key_length = min(strlen($key), 32);
 
-		for ($i2 = 0; $i2 < $kl; $i2++) {
-			$k[$i2] = ord($encryption_key[$i2]) & 0x1F;
+		if ($key_length === 0) {
+			return $string;
 		}
-		$j = 0;
 
-		for ($i2 = 0; $i2 < strlen($str); $i2++) {
-			$e = ord($str[$i2]);
-			$str[$i2] = $e & 0xE0 ? chr($e^$k[$j]) : chr($e);
-			$j++; $j = $j == $kl ? 0 : $j;
+		for ($i = 0, $j = 0, $length = strlen($string); $i < $length; $i++) {
+			$char = ord($string[$i]);
+
+			if ($char & 0xE0) {
+				$string[$i] = chr($char ^ (ord($key[$j]) & 0x1F));
+			}
+
+			$j = ($j + 1) % $key_length;
 		}
-		return $str;
+
+		return $string;
 	}
 
-?>
+	// Encrypt an e-mail address for storage
+	function encrypt_email(string $email): string
+	{
+		if ($email === '') {
+			return '';
+		}
+
+		$key = derived_key('email');
+
+		if (function_exists('sodium_crypto_secretbox')) {
+			$nonce = random_bytes(SODIUM_CRYPTO_SECRETBOX_NONCEBYTES);
+
+			return EMAIL_CIPHER_PREFIX . base64_encode($nonce . sodium_crypto_secretbox($email, $nonce, $key));
+		}
+
+		$iv = random_bytes(12);
+		$ciphertext = openssl_encrypt($email, 'aes-256-gcm', $key, OPENSSL_RAW_DATA, $iv, $tag);
+
+		return 'v2g:' . base64_encode($iv . $tag . $ciphertext);
+	}
+
+	// Decrypt a stored e-mail address; returns an empty string on failure
+	function decrypt_email(string $stored): string
+	{
+		if ($stored === '') {
+			return '';
+		}
+
+		$key = derived_key('email');
+
+		if (str_starts_with($stored, EMAIL_CIPHER_PREFIX)) {
+			$data = base64_decode(substr($stored, strlen(EMAIL_CIPHER_PREFIX)), true);
+
+			if ($data === false || strlen($data) <= SODIUM_CRYPTO_SECRETBOX_NONCEBYTES) {
+				return '';
+			}
+
+			$nonce = substr($data, 0, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES);
+			$email = sodium_crypto_secretbox_open(substr($data, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES), $nonce, $key);
+
+			return $email === false ? '' : $email;
+		}
+
+		if (str_starts_with($stored, 'v2g:')) {
+			$data = base64_decode(substr($stored, 4), true);
+
+			if ($data === false || strlen($data) <= 28) {
+				return '';
+			}
+
+			$email = openssl_decrypt(substr($data, 28), 'aes-256-gcm', $key, OPENSSL_RAW_DATA, substr($data, 0, 12), substr($data, 12, 16));
+
+			return $email === false ? '' : $email;
+		}
+
+		return safe_email(legacy_xor($stored));
+	}
+
+	// Whether two e-mail addresses are the same
+	function same_email(string $a, string $b): bool
+	{
+		return $a !== '' && $b !== '' && hash_equals(strtolower(trim($a)), strtolower(trim($b)));
+	}
+
+	// Hash a password for storage
+	function hash_password(string $password): string
+	{
+		return $password === '' ? '' : password_hash($password, PASSWORD_DEFAULT);
+	}
+
+	// Check a password against a stored hash, including legacy MD5 hashes
+	function verify_password(string $password, string $stored): bool
+	{
+		if ($password === '' || $stored === '') {
+			return false;
+		}
+
+		if (password_get_info($stored)['algo'] !== null) {
+			return password_verify($password, $stored);
+		}
+
+		return preg_match('/^[a-f0-9]{32}$/', $stored) === 1
+			&& hash_equals($stored, md5(legacy_xor($password)));
+	}
+
+	// Whether a stored password hash should be upgraded
+	function password_needs_upgrade(string $stored): bool
+	{
+		return $stored !== '' && (password_get_info($stored)['algo'] === null || password_needs_rehash($stored, PASSWORD_DEFAULT));
+	}

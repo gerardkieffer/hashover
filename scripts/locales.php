@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 	// Copyright (C) 2014-2019 Jacob Barkdull, Stéphane Mourey
 	//
 	//	I, Jacob Barkdull, hereby release this work into the public domain.
@@ -16,8 +18,8 @@
 
 
 	// Text for forms, buttons, links, and tooltips in multiple languages
-	$locale = array(
-		'en' => array(
+	$locale = [
+		'en' => [
 			'comment_form'	=> 'Type Comment Here (other fields optional)',
 			'reply_form'	=> 'Type Reply Here (other fields optional)',
 			'post_button'	=> 'Post Comment',
@@ -62,9 +64,9 @@
 			'op_cmt_note'	=> 'You will not be notified via e-mail',
 			'subbed_note'	=> 'will be notified via e-mail',
 			'unsubbed_note' => 'is not subscribed to e-mail notifications'
-		),
+		],
 
-		'es' => array(
+		'es' => [
 			'comment_form'	=> 'Escriba un comentario aquí (otros campos opcionales)',
 			'reply_form'	=> 'Escriba Reply Aquí (otros campos opcionales)',
 			'post_button'	=> 'Publicar Comentario',
@@ -109,9 +111,9 @@
 			'op_cmt_note'	=> 'No lo harás notificará por correo electrónico',
 			'subbed_note'	=> 'será notificado vía e-mail',
 			'unsubbed_note' => 'no es suscrito a las notificaciones por correo electrónico'
-		),
+		],
 
-		'jp' => array(
+		'jp' => [
 			'comment_form'	=> 'ここにコメントを入力し（その他のフィールドはオプショナル）',
 			'reply_form'	=> 'ここに返信を入力し（その他のフィールドはオプショナル）',
 			'post_button'	=> 'コメントポスト',
@@ -156,9 +158,9 @@
 			'op_cmt_note'	=> 'あなたが電子メールを介して通知されません',
 			'subbed_note'	=> '電子メールを介して通知され',
 			'unsubbed_note' => 'は、電子メール通知にサブスクライブされていない'
-		),
+		],
 
-		'fr' => array(
+		'fr' => [
 			'comment_form'	=> 'Tapez votre commentaire ici (les autres champs sont optionnels)',
 			'reply_form'	=> 'Tapez votre réponse ici (les autres champs sont optionnels)',
 			'post_button'	=> 'Envoyez votre commentaire',
@@ -203,10 +205,8 @@
 			'op_cmt_note'	=> 'Vous ne serez pas notifié par email',
 			'subbed_note'	=> 'sera notifié par email',
 			'unsubbed_note'	=> 'ne s&apos;est pas abandonner aux notifications par email'
-		)
-	);
+		]
+	];
 
 	// Set locale to language in settings
-	$text = $locale[$language];
-
-?>
+	$text = $locale[$language] ?? $locale['en'];

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 	// Copyright (C) 2014-2019 Jacob Barkdull
 	//
 	//	This program is free software: you can redistribute it and/or modify
@@ -25,57 +27,92 @@
 	//	visitor isn't the comment's original poster.
 
 
-	// Decryption method for stored e-mails
-	function encrypt($string) {
-		global $encryption_key;
+	header('Content-Type: text/plain; charset=UTF-8');
+	header('X-Content-Type-Options: nosniff');
+	header('Cache-Control: no-store');
 
-		$str = $string . '';
-		$encryption_key = str_replace(chr(32), '', $encryption_key);
-		if (strlen($encryption_key) < 8) exit('<b>HashOver - Error:</b> Key error, make sure it\'s at least 8 characters long.');
-		$kl = strlen($encryption_key) < 32 ? strlen($encryption_key) : 32;
-		$k = array();
+	require __DIR__ . '/settings.php';
+	require __DIR__ . '/secrets.php';
+	require __DIR__ . '/functions.php';
+	require __DIR__ . '/encryption.php';
 
-		for ($i2 = 0; $i2 < $kl; $i2++) {
-			$k[$i2] = ord($encryption_key{$i2}) & 0x1F;
-		}
-		$j = 0;
-
-		for ($i2 = 0; $i2 < strlen($str); $i2++) {
-			$e = ord($str{$i2});
-			$str{$i2} = $e & 0xE0 ? chr($e^$k[$j]) : chr($e);
-			$j++; $j = $j == $kl ? 0 : $j;
-		}
-
-		return $str;
+	// Likes change data, so they must be POST requests from this website
+	if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST' || ($domain = clean_domain($domain)) === null || !is_same_origin_request()) {
+		http_response_code(403);
+		exit('Forbidden');
 	}
 
-	// Function for liking a comment
-	if (isset($_SERVER['HTTP_REFERER'])) {
-		if (isset($_GET['like']) and !empty($_GET['like'])) {
-			require('secrets.php');
-			$file = '../pages/' . str_replace('../', '', $_GET['like']) . '.xml';
-			$like = (file_exists($file)) ? simplexml_load_file($file) : exit('File: "' . $file . '" non-existent!');
-			if (isset($_COOKIE['email']) and encrypt($_COOKIE['email']) == $like->email) exit('Practice altruism!');
-			$like_cookie = md5($_SERVER['SERVER_NAME'] . $_GET['like']);
-
-			if (!isset($_COOKIE[$like_cookie]) or (isset($_COOKIE[$like_cookie]) and $_COOKIE[$like_cookie] == 'unliked')) {
-				setcookie($like_cookie, 'liked', mktime(0, 0, 0, 11, 26, 3468), '/', str_replace('www.', '', $_SERVER['SERVER_NAME']));
-				$like['likes'] = $like['likes'] + 1;
-				$like->asXML($file);
-				exit($like['likes'] . ' likes!');
-			} else {
-				if ($_COOKIE[$like_cookie] != 'unliked') {
-					setcookie($like_cookie, 'unliked', mktime(0, 0, 0, 11, 26, 3468), '/', str_replace('www.', '', $_SERVER['SERVER_NAME']));
-
-					if ($like['likes'] > 0) {
-						$like['likes'] = $like['likes'] - 1;
-						$like->asXML($file);
-					}
-
-					exit('Unliked >;)');
-				}
-			}
-		}
+	if (is_blocked_visitor(false)) {
+		http_response_code(403);
+		exit('You are blocked!');
 	}
 
-?>
+	// Expect "thread-directory/comment-id"
+	$like = post('like');
+	$like_parts = explode('/', $like);
+
+	if (count($like_parts) !== 2 || !is_thread_name($like_parts[0]) || !is_comment_id($like_parts[1])) {
+		http_response_code(400);
+		exit('Invalid comment');
+	}
+
+	$file = 'pages/' . $like_parts[0] . '/' . $like_parts[1] . '.xml';
+
+	if (!is_file($file) || ($handle = fopen($file, 'r+')) === false) {
+		http_response_code(404);
+		exit('Comment not found');
+	}
+
+	// Lock the file so simultaneous likes aren't lost
+	flock($handle, LOCK_EX);
+
+	$previous = libxml_use_internal_errors(true);
+	$comment = simplexml_load_string((string) stream_get_contents($handle), null, LIBXML_NONET);
+	libxml_clear_errors();
+	libxml_use_internal_errors($previous);
+
+	// Save the like count and release the file
+	$save = function (\SimpleXMLElement $comment) use ($handle): void {
+		ftruncate($handle, 0);
+		rewind($handle);
+		fwrite($handle, (string) $comment->asXML());
+		fflush($handle);
+	};
+
+	if ($comment === false) {
+		flock($handle, LOCK_UN);
+		fclose($handle);
+		http_response_code(500);
+		exit('Comment could not be read');
+	}
+
+	$likes = (int) $comment['likes'];
+
+	if (same_email(safe_email(cookie('email')), decrypt_email((string) $comment->email)) || owns_comment($comment)) {
+		flock($handle, LOCK_UN);
+		fclose($handle);
+		exit('Practice altruism!');
+	}
+
+	$like_cookie = md5(($_SERVER['SERVER_NAME'] ?? '') . $like);
+	$like_expire = time() + 60 * 60 * 24 * 365 * 10;
+
+	if (cookie($like_cookie) !== 'liked') {
+		set_cookie($like_cookie, 'liked', $like_expire);
+		$comment['likes'] = (string) ++$likes;
+		$save($comment);
+		$message = $likes . ' likes!';
+	} else {
+		set_cookie($like_cookie, 'unliked', $like_expire);
+
+		if ($likes > 0) {
+			$comment['likes'] = (string) --$likes;
+			$save($comment);
+		}
+
+		$message = 'Unliked >;)';
+	}
+
+	flock($handle, LOCK_UN);
+	fclose($handle);
+	exit($message);

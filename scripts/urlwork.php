@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 	// Copyright (C) 2014-2019 Jacob Barkdull
 	//
 	//	This program is free software: you can redistribute it and/or modify
@@ -16,123 +18,110 @@
 	//	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-	// Set Canonical URL
-	if (!isset($canon_url) and isset($script_query)) {
-		if (isset($_POST['canon_url']) and !empty($_POST['canon_url'])) {
-			$canon_url = (preg_match('/([http|https]):\/\//i', $_POST['canon_url'])) ? $_POST['canon_url'] : 'http://' . $_POST['canon_url'];
-		} else if (isset($_GET['canon_url']) and !empty($_GET['canon_url'])) {
-			$canon_url = (preg_match('/([http|https]):\/\//i', $_GET['canon_url'])) ? $_GET['canon_url'] : 'http://' . $_GET['canon_url'];
+	// Set Canonical URL; only accept URLs on this website
+	if (!isset($canon_url) && $script_query) {
+		$canon_url = post('canon_url') !== '' ? post('canon_url') : query('canon_url');
+
+		if ($canon_url !== '' && !preg_match('/^https?:\/\//i', $canon_url)) {
+			$canon_url = 'http://' . $canon_url;
+		}
+
+		if ($canon_url === '' || safe_url($canon_url) === '' || !is_own_url($canon_url)) {
+			unset($canon_url);
 		}
 	}
 
+	// Comment permalinks look like "c1", "c1r2", and "c1r2_pop"
+	function is_permalink(string $permalink): bool
+	{
+		return preg_match('/^c[1-9]\d{0,5}(?:r[1-9]\d{0,5}){0,30}(?:_pop)?$/', $permalink) === 1;
+	}
+
 	// Get full page URL or Canonical URL
-	if ($mode == 'javascript') {
-		if (isset($_SERVER['HTTP_REFERER']) and !isset($_GET['rss'])) {
-			$url_parts = parse_url($_SERVER['HTTP_REFERER']);
-			$url_host = '';
-
-			// Construct host URL
-			if (!empty($url_parts['host'])) {
-				$url_host .= $url_parts['host'];
-
-				// Add optional port to URL
-				if (!empty($url_parts['port'])) {
-					$url_host .= ':' . $url_parts['port'];
-				}
-			}
-
+	if ($mode === 'javascript') {
+		if (!empty($_SERVER['HTTP_REFERER']) && !isset($_GET['rss'])) {
 			// Check if the script was requested by this server
-			if (!preg_match('/' . $domain . '/i', $url_host)) {
-				exit(jsAddSlashes('<b>HashOver - Error:</b> External use not allowed.', 'single'));
+			if (!is_own_url((string) $_SERVER['HTTP_REFERER'])) {
+				hashover_error('External use not allowed.');
 			}
 
-			$page_url = (empty($canon_url)) ? $_SERVER['HTTP_REFERER'] : $canon_url;
+			$page_url = $canon_url ?? (string) $_SERVER['HTTP_REFERER'];
 		} else {
 			if (!isset($_GET['rss'])) {
-				exit(jsAddSlashes('<b>HashOver - Error:</b> No way to get page URL, HTTP referrer not set.', 'single'));
-			} else {
-				$page_url = $_GET['rss'];
+				hashover_error('No way to get page URL, HTTP referrer not set.');
 			}
+
+			$page_url = query('rss');
 		}
 	} else {
 		if (empty($canon_url)) {
-			$page_url = 'http://' . $domain . $_SERVER['REQUEST_URI'];
+			$page_url = request_scheme() . '://' . $domain . ($_SERVER['REQUEST_URI'] ?? '/');
 		} else {
 			$page_url = $canon_url;
 
-			if (!empty($_GET['hashover_reply']) or !empty($_GET['hashover_edit'])) {
-				$page_url .= (!empty($_GET['hashover_reply'])) ? '?hashover_reply=' . $_GET['hashover_reply'] : '?hashover_edit=' . $_GET['hashover_edit'];
+			if (is_permalink(query('hashover_reply'))) {
+				$page_url .= '?hashover_reply=' . query('hashover_reply');
+			} elseif (is_permalink(query('hashover_edit'))) {
+				$page_url .= '?hashover_edit=' . query('hashover_edit');
 			}
 		}
 	}
 
 	// Set URL to "count_link" query value
-	if (isset($script_query)) {
-		if (isset($_GET['count_link']) and !empty($_GET['count_link'])) {
-			$page_url = $_GET['count_link'];
-		}
+	if ($script_query && query('count_link') !== '') {
+		$page_url = query('count_link');
 	}
 
 	// Characters that aren't allowed in directory names
-	$reserved_characters = array(
-		'<',
-		'>',
-		':',
-		'"',
-		'/',
-		'\\',
-		'|',
-		'?',
-		'&',
-		'!',
-		'*',
-		'.',
-		'=',
-		'_',
-		'+',
-		' '
-	);
+	$reserved_characters = ['<', '>', ':', '"', '/', '\\', '|', '?', '&', '!', '*', '.', '=', '_', '+', ' '];
 
 	// Clean URL for comment thread directory name
 	$parse_url = parse_url($page_url); // Turn page URL into array
-	$ref_path  = ($parse_url['path'] == '/') ? 'index' : str_replace($reserved_characters, '-', substr($parse_url['path'], 1));
-	$ref_queries = (isset($parse_url['query'])) ? explode('&', $parse_url['query']) : array();
-	$ignore_queries = array('hashover_reply', 'hashover_edit');
+
+	if (!is_array($parse_url)) {
+		hashover_error('Invalid page URL.');
+	}
+
+	$parse_url['path'] ??= '/';
+	$ref_path = ($parse_url['path'] === '/') ? 'index' : str_replace($reserved_characters, '-', substr($parse_url['path'], 1));
+	$ref_queries = isset($parse_url['query']) ? explode('&', $parse_url['query']) : [];
+	$ignore_queries = ['hashover_reply', 'hashover_edit'];
 	$parse_url['query'] = '';
 
 	// Remove unwanted URL queries
-	if (file_exists('./ignore_queries.txt') and isset($parse_url['query'])) {
-		$ignore_queries = array_merge($ignore_queries, explode(PHP_EOL, file_get_contents('ignore_queries.txt')));
+	if (is_readable('./ignore_queries.txt')) {
+		$ignore_queries = array_merge($ignore_queries, array_filter(array_map('trim', file('./ignore_queries.txt', FILE_IGNORE_NEW_LINES) ?: [])));
 	}
 
-	for ($q = 0; $q <= (count($ref_queries) - 1); $q++) {
-		if (!in_array($ref_queries[$q], $ignore_queries) and !empty($ref_queries[$q])) {
-			$ref_parts = explode('=', $ref_queries[$q]);
+	foreach ($ref_queries as $q => $ref_query) {
+		if ($ref_query !== '' && !in_array($ref_query, $ignore_queries, true)) {
+			$query_name = explode('=', $ref_query, 2)[0];
 
-			if (!in_array(basename($ref_queries[$q], '=' . end($ref_parts)), $ignore_queries)) {
-				$parse_url['query'] .= ($q > 0 and !empty($parse_url['query'])) ? '&' . $ref_queries[$q] : $ref_queries[$q];
+			if (!in_array($query_name, $ignore_queries, true)) {
+				$parse_url['query'] .= ($q > 0 && $parse_url['query'] !== '') ? '&' . $ref_query : $ref_query;
 			}
 		}
 	}
 
 	// Append URL query to path
-	if (!empty($parse_url['query'])) {
+	if ($parse_url['query'] !== '') {
 		$ref_path .= '-' . str_replace($reserved_characters, '-', $parse_url['query']);
 	}
 
-	// Remove multiple dashes
-	if (mb_strpos($ref_path, '--') !== false) {
-		$ref_path = preg_replace('/-{2,}/', '-', $ref_path);
-	}
+	// Only keep safe file name characters; remove multiple dashes
+	$ref_path = (string) preg_replace(['/[^A-Za-z0-9%~@,;()-]/', '/-{2,}/'], ['-', '-'], $ref_path);
 
 	// Remove leading and trailing dashes
 	$ref_path = trim($ref_path, '-');
 
-	// Page comments directory
-	if ($ref_path != 'hashover-php') {
-		$dir = 'pages/' . $ref_path;
-	} else {
-		exit(jsAddSlashes('<b>HashOver - Error:</b> Failure setting comment directory name'));
+	// Keep directory names within file system limits
+	if (strlen($ref_path) > 200) {
+		$ref_path = substr($ref_path, 0, 160) . '-' . substr(hash('sha256', $ref_path), 0, 16);
 	}
 
-?>
+	// Page comments directory
+	if ($ref_path !== 'hashover-php' && is_thread_name($ref_path)) {
+		$dir = 'pages/' . $ref_path;
+	} else {
+		hashover_error('Failure setting comment directory name');
+	}

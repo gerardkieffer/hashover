@@ -1,0 +1,15 @@
+# Only "like.php" is meant to be requested directly; the other scripts
+# are included by "comments.php".
+<IfModule mod_authz_core.c>
+	Require all denied
+	<Files "like.php">
+		Require all granted
+	</Files>
+</IfModule>
+<IfModule !mod_authz_core.c>
+	Order deny,allow
+	Deny from all
+	<Files "like.php">
+		Allow from all
+	</Files>
+</IfModule>

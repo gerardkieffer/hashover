@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 	// Copyright (C) 2014-2019 Jacob Barkdull
 	//
 	//	This program is free software: you can redistribute it and/or modify
@@ -17,90 +19,83 @@
 
 
 	// Set feed title
-	if (isset($_GET['title']) and !empty($_GET['title'])) {
-		$title = $_GET['title'];
-	} else {
-		$title = $domain . ': ' . basename($dir);
-	}
+	$title = (query('title') !== '') ? query('title') : normalize_host($domain) . ': ' . basename($dir);
+	$feed_url = safe_url(query('rss'));
+	$rss_feed = '';
 
 	// Read directory contents if conditions met
-	if (file_exists($dir) and !empty($_GET['rss'])) {
-		$files = array();
-		$ac = 0;
+	if (is_dir($dir) && $feed_url !== '') {
+		$comments = [];
 
 		// Read comment files into array; convert date into UNIX timestamp
-		foreach (glob($dir . '/*.xml', GLOB_NOSORT) as $file) {
-			$files[$ac] = simplexml_load_file($file);
-			$files[$ac]['date'] = strtotime(str_replace(array('- ', 'am', 'pm'), array('', ' AM PST', ' PM PST'), $files[$ac]->date));
-			$files[$ac]['file'] = $file;
+		foreach (glob($dir . '/*.xml', GLOB_NOSORT) ?: [] as $file) {
+			$file_id = basename($file, '.xml');
 
-			if (!preg_match('/-/', basename($file, '.xml'))) {
+			if (!is_comment_id($file_id) || ($comment = load_comment($file)) === null) {
+				continue;
+			}
+
+			$comments[] = [
+				'comment' => $comment,
+				'file_id' => $file_id,
+				'date' => (int) strtotime(str_replace(['- ', 'am', 'pm'], ['', ' AM PST', ' PM PST'], (string) $comment->date))
+			];
+
+			if (!str_contains($file_id, '-')) {
 				$cmt_count++;
 			}
 
 			$total_count++;
-			$ac++;
 		}
 
 		// Sort by comment creation date
-		usort($files, function ($a, $b) {
-			return ($b['date'] - $a['date']);
-		});
+		usort($comments, fn (array $a, array $b): int => $b['date'] <=> $a['date']);
 
-		foreach ($files as $rss_cmt) {
-			static $rss_feed = '';
+		foreach ($comments as $entry) {
+			$rss_cmt = $entry['comment'];
+			$permalink = 'c' . str_replace('-', 'r', $entry['file_id']);
+			$name = str_replace('@identica', '', strip_tags(html_entity_decode((string) $rss_cmt->name, ENT_QUOTES | ENT_HTML5, 'UTF-8')));
+			$body = str_replace(['\n', '\r'], ' ', (string) $rss_cmt->body);
+			$summary = strip_tags(html_entity_decode($body, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+			$summary = (mb_strlen($summary) > 40) ? mb_substr($summary, 0, 40) . '...' : $summary;
+			$email = decrypt_email((string) $rss_cmt->email);
 
-			// Set feed title
-			if (!empty($_GET['title'])) {
-				$title = $_GET['title'];
-			} else {
-				$title = str_replace('www.', '', $domain) . ': ' . basename($dir);
-			}
+			// Add avatar URLs to feed
+			$rss_avatar = get_user_avatar(($email !== '') ? md5(strtolower(trim($email))) : '');
 
-			// Error handling
-			if ($rss_cmt !== false) {
-				$data_search = array('&', '<br>\n', '\n', '\r', '    ');
-				$data_replace = array('&amp;', ' ', ' ', ' ', ' ');
-
-				$permalink = 'c' . str_replace('-', 'r', basename($rss_cmt['file'], '.xml'));
-				$rss_feed .= "\t\t" . '<item>' . PHP_EOL;
-				$rss_feed .= "\t\t\t" . '<title>' . str_replace('@identica', '', htmlspecialchars(strip_tags(html_entity_decode($rss_cmt->name)))) . ' : ';
-				$rss_feed .= ((strlen($rss_cmt->body) > 40) ? htmlspecialchars(strip_tags(html_entity_decode(substr(str_replace(array('\n', '\r'), ' ', $rss_cmt->body), 0, 40)))) . '...' : str_replace(array('\n', '\r'), ' ', htmlspecialchars(strip_tags(html_entity_decode($rss_cmt->body))))) . '</title>' . PHP_EOL;
-				$rss_feed .= "\t\t\t" . '<nickname>' . str_replace('@identica', '', htmlspecialchars(strip_tags(html_entity_decode($rss_cmt->name)))) . '</nickname>' . PHP_EOL;
-				$rss_feed .= "\t\t\t" . '<description>' . str_replace(array('\n', '\r'), '', htmlspecialchars(strip_tags($rss_cmt->body, '<br><a><b><i><u><s><blockquote><img>'))) . '</description>' . PHP_EOL;
-
-				// Add avatar URLs to feed
-				$rss_avatar = get_user_avatar((!empty($rss_cmt->email)) ? md5(strtolower(trim(encrypt($rss_cmt->email)))) : '');
-
-				$rss_feed .= "\t\t\t" . '<avatar>' . $rss_avatar . '</avatar>' . PHP_EOL;
-				$rss_feed .= "\t\t\t" . '<likes>' . $rss_cmt['likes'] . '</likes>' . PHP_EOL;
-				$rss_feed .= "\t\t\t" . '<pubDate>' . date('D, d M Y H:i:s O', strtotime(str_replace(' - ', ' ', $rss_cmt->date))) . '</pubDate>' . PHP_EOL;
-				$rss_feed .= "\t\t\t" . '<guid>' . $_GET['rss'] . '#' . $permalink . '</guid>' . PHP_EOL;
-				$rss_feed .= "\t\t\t" . '<link>' . $_GET['rss'] . '#' . $permalink . '</link>' . PHP_EOL;
-				$rss_feed .= "\t\t" . '</item>' . PHP_EOL;
-			} else {
-				$total_count--;
-			}
+			$rss_feed .= "\t\t" . '<item>' . PHP_EOL;
+			$rss_feed .= "\t\t\t" . '<title>' . xml_escape($name . ' : ' . $summary) . '</title>' . PHP_EOL;
+			$rss_feed .= "\t\t\t" . '<nickname>' . xml_escape($name) . '</nickname>' . PHP_EOL;
+			$rss_feed .= "\t\t\t" . '<description>' . xml_escape(strip_tags($body, '<br><a><b><i><u><s><blockquote><img>')) . '</description>' . PHP_EOL;
+			$rss_feed .= "\t\t\t" . '<avatar>' . xml_escape($rss_avatar) . '</avatar>' . PHP_EOL;
+			$rss_feed .= "\t\t\t" . '<likes>' . (int) $rss_cmt['likes'] . '</likes>' . PHP_EOL;
+			$rss_feed .= "\t\t\t" . '<pubDate>' . date('D, d M Y H:i:s O', (int) strtotime(str_replace(' - ', ' ', (string) $rss_cmt->date))) . '</pubDate>' . PHP_EOL;
+			$rss_feed .= "\t\t\t" . '<guid>' . xml_escape($feed_url . '#' . $permalink) . '</guid>' . PHP_EOL;
+			$rss_feed .= "\t\t\t" . '<link>' . xml_escape($feed_url . '#' . $permalink) . '</link>' . PHP_EOL;
+			$rss_feed .= "\t\t" . '</item>' . PHP_EOL;
 		}
 	} else {
-		$rss_feed = "\t\t" . '<item>' . PHP_EOL;
+		$rss_feed .= "\t\t" . '<item>' . PHP_EOL;
 		$rss_feed .= "\t\t\t" . '<title>Error</title>' . PHP_EOL;
 		$rss_feed .= "\t\t\t" . '<description>Please choose a comment thread via page URL.</description>' . PHP_EOL;
 		$rss_feed .= "\t\t" . '</item>' . PHP_EOL;
 	}
 
-	header('Content-Type: application/xml');
+	$self_url = request_scheme() . '://' . $domain . ($_SERVER['SCRIPT_NAME'] ?? '') . '?rss=' . rawurlencode($feed_url) . '&title=' . rawurlencode($title);
+
+	header('Content-Type: application/rss+xml; charset=UTF-8');
+	header('X-Content-Type-Options: nosniff');
+	header("Content-Security-Policy: default-src 'none'; sandbox");
+
 	echo '<?xml version="1.0" encoding="UTF-8"?>' . PHP_EOL;
 	echo '<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">' . PHP_EOL;
 	echo "\t" . '<channel>' . PHP_EOL;
-	echo "\t\t" . '<title>' . $title . '</title>' . PHP_EOL;
-	echo "\t\t" . '<link>' . $_GET['rss'] . '</link>' . PHP_EOL;
-	echo "\t\t" . '<description>' . $text['showing_cmts'] . ' ' . ($total_count - 1) . ' Comments</description>' . PHP_EOL;
-	echo "\t\t" . '<atom:link href="http://' . $domain . $_SERVER['PHP_SELF'] . '?rss=' . str_replace(array("?", "&"), array("%3F", "&amp;"), $_GET['rss']) . '&amp;title=' . $title . '" rel="self"></atom:link>' . PHP_EOL;
+	echo "\t\t" . '<title>' . xml_escape($title) . '</title>' . PHP_EOL;
+	echo "\t\t" . '<link>' . xml_escape($feed_url) . '</link>' . PHP_EOL;
+	echo "\t\t" . '<description>' . xml_escape(html_entity_decode($text['showing_cmts'], ENT_QUOTES | ENT_HTML5, 'UTF-8')) . ' ' . ($total_count - 1) . ' Comments</description>' . PHP_EOL;
+	echo "\t\t" . '<atom:link href="' . xml_escape($self_url) . '" rel="self"></atom:link>' . PHP_EOL;
 	echo "\t\t" . '<language>en-us</language>' . PHP_EOL;
 	echo "\t\t" . '<ttl>40</ttl>' . PHP_EOL;
-	echo iconv('UTF-8', 'UTF-8//IGNORE', $rss_feed);
+	echo mb_scrub($rss_feed, 'UTF-8');
 	echo "\t" . '</channel>' . PHP_EOL;
 	exit('</rss>');
-
-?>
