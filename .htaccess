@@ -1,5 +1,5 @@
-# Block private configuration and data files
-<FilesMatch "^(blocklist\.txt|ignore_queries\.txt|template\.xml|\.git.*)$">
+# Block private configuration, data and development files
+<FilesMatch "^(blocklist\.txt|ignore_queries\.txt|template\.xml|composer\.(json|lock)|phpunit\.xml(\.dist)?|phpstan.*\.neon(\.dist)?|.*\.md|\.git.*)$">
 	<IfModule mod_authz_core.c>
 		Require all denied
 	</IfModule>
@@ -8,5 +8,8 @@
 		Deny from all
 	</IfModule>
 </FilesMatch>
+
+# Block development and dependency directories
+RedirectMatch 404 /(vendor|tests|src|\.github)(/|$)
 
 Options -Indexes
