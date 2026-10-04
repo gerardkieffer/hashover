@@ -211,7 +211,7 @@ declare(strict_types=1);
 			kick_back('comments');
 		}
 
-		if (trim($comment, " \r\n") !== '' && mb_strlen($comment) <= (int) $max_comment && stripos($comment, $text['comment_form']) === false && stripos($comment, $text['reply_form']) === false) {
+		if (trim($comment, " \r\n") !== '' && mb_strlen($comment) <= (int) ($max_comment ?? 20000) && stripos($comment, $text['comment_form']) === false && stripos($comment, $text['reply_form']) === false) {
 			// Characters to search for and replace with in comments
 			$data_search = ['\\', '"', '<', '>', "\n\r", "\n", "\r", '  ', '&lt;b&gt;', '&lt;/b&gt;', '&lt;u&gt;', '&lt;/u&gt;', '&lt;i&gt;', '&lt;/i&gt;', '&lt;s&gt;', '&lt;/s&gt;', '&lt;pre&gt;', '&lt;/pre&gt;', '&lt;code&gt;', '&lt;/code&gt;', '&lt;ul&gt;', '&lt;/ul&gt;', '&lt;ol&gt;', '&lt;/ol&gt;', '&lt;li&gt;', '&lt;/li&gt;', '&lt;blockquote&gt;', '&lt;/blockquote&gt;'];
 			$data_replace = ['&#92;', '&quot;', '&lt;', '&gt;', '<br>', '', '<br>', ' &nbsp;', '<b>', '</b>', '<u>', '</u>', '<i>', '</i>', '<s>', '</s>', '<pre>', '</pre>', '<code>', '</code>', '<ul>', '</ul>', '<ol>', '</ol>', '<li>', '</li>', '<blockquote>', '</blockquote>'];

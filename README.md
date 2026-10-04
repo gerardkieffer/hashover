@@ -50,6 +50,10 @@ Notable Features
 Documentation
 ===
 
+**Requirements**
+
+PHP 8.1 or newer (developed and tested with PHP 8.4) with the `mbstring`, `SimpleXML` and `sodium` (or `openssl`) extensions.
+
 **Prerequisites**
 
 There are two methods of using HashOver, both methods require doing the following first:
@@ -62,15 +66,42 @@ There are two methods of using HashOver, both methods require doing the followin
 
 > It is not recommended that permissions "0777" ever be used. For security reasons, the "hashover/pages" directory should be "given" (chown) to the user that the server is configured to execute PHP scripts as, for example "www-data". And then simply give the "hashover/pages" directory permissions "0755".**
 
+**Protect the data files**
+
+The `hashover/pages` directory holds password hashes, encrypted e-mail addresses and (optionally) IP addresses. It must never be served to visitors. On Apache the included `.htaccess` files take care of this (they require `AllowOverride All`, or at least `AuthConfig Limit Options`). On nginx, add the equivalent rules to your server block:
+
+```
+location ~ ^/hashover/(pages|scripts)/ {
+        deny all;
+}
+
+location = /hashover/scripts/like.php {
+        # pass to PHP as usual, e.g.:
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_pass unix:/run/php/php8.4-fpm.sock;
+}
+
+location ~ ^/hashover/(blocklist\.txt|ignore_queries\.txt|template\.xml)$ {
+        deny all;
+}
+```
+
 **Required Setup**
 
 **The following actions are required before using HashOver.**
 
 Edit the file `hashover/scripts/secrets.php` and make the following changes.
-Set a UNIQUE 8 to 32 character value for the `$encryption_key` variable.
+Set a UNIQUE random value for the `$encryption_key` variable, at least 8 characters, 32 recommended (`php -r 'echo bin2hex(random_bytes(16)), PHP_EOL;'`). Existing installations must keep their key, or stored e-mail addresses become unreadable.
 Set the `$notification_email` variable to any valid e-mail address.
 Set a UNIQUE value for the `$admin_nickname` variable.
-Set a UNIQUE value for the `$admin_password` variable.
+Set a UNIQUE value for the `$admin_password` variable. It may be a hash generated with `php -r 'echo password_hash("your password", PASSWORD_DEFAULT), PHP_EOL;'` instead of plain text.
+
+In `hashover/scripts/settings.php`, it is recommended to set `$domain` to your website's domain name (for example `'example.com'`) instead of trusting the HTTP Host header.
+
+**Logging in**
+
+Fill in the nickname and password fields and press the login button (or post a comment with a password). HashOver then sets an HttpOnly login cookie which lets you edit and delete your comments posted with the same nickname and password. Passwords are never stored in cookies. When the administrator's nickname and password are used, the cookie grants the right to edit and delete every comment. Nobody else may post using the administrator's nickname.
 
 **Using HashOver**
 
