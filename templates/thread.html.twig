@@ -2,16 +2,26 @@
  # A page's comment thread. Rendered inside <div id="hashover"> by the PHP
  # embed, or fetched and inserted by hashover.js.
  #
+ # With Turnstile, controls marked data-hashover-gated (liking, replying,
+ # posting, saving) are aria-disabled until the visitor has a pass;
+ # hashover.js renders the widget and enables them.
+ #
  # Variables: see HashOver\Application::context()
  #}
 <section class="hashover-thread" aria-labelledby="hashover-heading" lang="{{ language }}"
     data-hashover-endpoint="{{ endpoint }}" data-hashover-url="{{ page.url }}" data-hashover-sort="{{ sort.value }}"
+    {%- if turnstile %}
+    data-hashover-turnstile="{{ turnstile.site_key }}" data-hashover-verified="{{ turnstile.remaining }}"
+    {%- endif %}
     data-hashover-text="{{ {
         confirmDelete: t('js.confirm_delete'),
         loading: t('js.loading'),
         failed: t('js.failed'),
         showImage: t('js.show_image'),
         image: t('js.image'),
+        verifyLoading: t('js.verify_loading'),
+        verifyUnavailable: t('js.verify_unavailable'),
+        verifyFailed: t('js.verify_failed'),
     }|json_encode }}">
     <h2 id="hashover-heading" class="hashover-heading">{{ t('thread.heading') }}</h2>
 

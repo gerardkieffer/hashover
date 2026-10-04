@@ -53,6 +53,10 @@ final readonly class Config
         public ?string $templatesDirectory = null,
         public string $sourceCodeUrl = 'https://github.com/gerardkieffer/hashover',
         public bool $forceSecureCookies = false,
+        public string $akismetKey = '',
+        public string $turnstileSiteKey = '',
+        public string $turnstileSecretKey = '',
+        public int $turnstilePassMinutes = 60,
     ) {}
 
     /** Default rate limits: [maximum hits, window in seconds] */
@@ -60,6 +64,7 @@ final readonly class Config
         'comment' => [5, 600],
         'auth' => [10, 900],
         'like' => [30, 60],
+        'verify' => [10, 600],
     ];
 
     public const array LANGUAGES = ['de', 'en', 'es', 'fr', 'ja'];
@@ -166,6 +171,13 @@ final readonly class Config
 
         $templates = $reader->string('templates_directory', '');
 
+        $turnstileSiteKey = trim($reader->string('turnstile_site_key', ''));
+        $turnstileSecretKey = trim($reader->string('turnstile_secret_key', ''));
+
+        if (($turnstileSiteKey === '') !== ($turnstileSecretKey === '')) {
+            throw new ConfigException('"turnstile_site_key" and "turnstile_secret_key" must both be set to enable Turnstile, or both be empty.');
+        }
+
         return new self(
             secretKey: $secretKey,
             adminName: $adminName,
@@ -199,6 +211,10 @@ final readonly class Config
             templatesDirectory: $templates === '' ? null : $templates,
             sourceCodeUrl: $reader->string('source_code_url', 'https://github.com/gerardkieffer/hashover'),
             forceSecureCookies: $reader->bool('force_secure_cookies', false),
+            akismetKey: trim($reader->string('akismet_key', '')),
+            turnstileSiteKey: $turnstileSiteKey,
+            turnstileSecretKey: $turnstileSecretKey,
+            turnstilePassMinutes: $reader->int('turnstile_pass_minutes', 60, 1, 60 * 24),
         );
     }
 

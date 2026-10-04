@@ -71,7 +71,31 @@ return [
         'comment' => [5, 600],
         'auth' => [10, 900],         // wrong passwords
         'like' => [30, 60],
+        'verify' => [10, 600],       // Turnstile checks
     ],
+
+    // Spam and bot protection --------------------------------------------------
+    //
+    // Both services are off by default: they send visitors' data to third
+    // parties, so mention them in your privacy policy. See README.md.
+
+    // Akismet (akismet.com) checks new and edited comments and rejects spam.
+    // Sends the comment, name, e-mail address, website, IP address and browser
+    // details to Automattic. Free for personal, non-commercial sites only.
+    // Empty to disable.
+    'akismet_key' => '',
+
+    // Cloudflare Turnstile (dash.cloudflare.com > Turnstile) asks visitors to
+    // prove they are human before they post, edit or like. Needs hashover.js
+    // (and therefore JavaScript) for every visitor, the administrator too.
+    // Add every host name that shows comments to the widget in Cloudflare's
+    // dashboard. Both keys empty to disable.
+    'turnstile_site_key' => '',
+    'turnstile_secret_key' => '',
+
+    // How long one successful check lets a visitor post, edit and like
+    // (1 to 1440 minutes); afterwards the check runs again
+    'turnstile_pass_minutes' => 60,
 
     // Privacy ----------------------------------------------------------------
 

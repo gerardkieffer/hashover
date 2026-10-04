@@ -1,0 +1,13 @@
+{# Helpers shared by the templates #}
+
+{#
+ # Attributes of a control that needs a Turnstile pass: data-hashover-gated
+ # names its note; hashover.js toggles aria-disabled and aria-describedby.
+ #}
+{% macro gate(turnstile, gated, note, described_by = '') %}
+    {%- if turnstile %} data-hashover-gated="{{ note }}"
+        {%- if gated %} aria-disabled="true"{% endif %}
+        {%- if gated or described_by %} aria-describedby="{{ (gated ? [described_by, note] : [described_by])|filter(id => id)|join(' ') }}"{% endif %}
+    {%- elseif described_by %} aria-describedby="{{ described_by }}"
+    {%- endif %}
+{%- endmacro %}

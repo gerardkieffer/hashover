@@ -11,6 +11,10 @@
 {% set error = active and message and message starts with 'error.' ? message : null %}
 {% set field_error = error ? error_field : null %}
 {% set heading_level = kind == 'comment' ? 3 : 4 %}
+{% import '_macros.html.twig' as macros %}
+{% set gated = turnstile and turnstile.remaining == 0 %}
+{# Main form: described by the security check next to it; other forms by a note #}
+{% set gate_note = kind == 'comment' ? 'hashover-verify-hint' : form_id ~ '-gate' %}
 
 <form method="post" action="{{ endpoint }}" id="{{ form_id }}" class="hashover-form hashover-form-{{ kind }}"
     data-hashover-form aria-labelledby="{{ form_id }}-heading">
@@ -105,6 +109,14 @@
             </div>
         </fieldset>
 
+        {% if turnstile and kind == 'comment' %}
+            <div class="hashover-verify" id="hashover-verify" tabindex="-1" {%- if not gated %} hidden{% endif %}>
+                <p class="hashover-hint" id="hashover-verify-hint">{{ t('verify.hint') }}</p>
+                <div class="hashover-turnstile" data-hashover-turnstile-widget></div>
+                <p class="hashover-verify-status" data-hashover-verify-status>{{ t('verify.needs_javascript') }}</p>
+            </div>
+        {% endif %}
+
         <div hidden>
             <label for="{{ form_id }}-hp">{{ t('form.honeypot') }}</label>
             <input type="text" id="{{ form_id }}-hp" name="{{ honeypot }}" tabindex="-1" autocomplete="off">
@@ -112,18 +124,21 @@
 
         <div class="hashover-buttons">
             {% if kind == 'comment' %}
-                <button type="submit" name="action" value="comment" class="hashover-primary">{{ t('form.post') }}</button>
+                <button type="submit" name="action" value="comment" class="hashover-primary" {{- macros.gate(turnstile, gated, gate_note) }}>{{ t('form.post') }}</button>
                 {% if not is_logged_in %}
                     <button type="submit" name="action" value="login" formnovalidate aria-describedby="{{ form_id }}-login-hint">{{ t('form.login') }}</button>
                     <p class="hashover-hint" id="{{ form_id }}-login-hint">{{ t('form.login_hint') }}</p>
                 {% endif %}
             {% elseif kind == 'reply' %}
-                <button type="submit" name="action" value="comment" class="hashover-primary">{{ t('form.post_reply') }}</button>
+                <button type="submit" name="action" value="comment" class="hashover-primary" {{- macros.gate(turnstile, gated, gate_note) }}>{{ t('form.post_reply') }}</button>
                 <a href="{{ page.url }}#{{ target.anchor() }}" data-hashover-cancel>{{ t('form.cancel') }}</a>
             {% else %}
-                <button type="submit" name="action" value="edit" class="hashover-primary">{{ t('form.save') }}</button>
+                <button type="submit" name="action" value="edit" class="hashover-primary" {{- macros.gate(turnstile, gated, gate_note) }}>{{ t('form.save') }}</button>
                 <button type="submit" name="action" value="delete" formnovalidate class="hashover-danger" data-hashover-delete>{{ t('form.delete') }}</button>
                 <a href="{{ page.url }}#{{ target.anchor() }}" data-hashover-cancel>{{ t('form.cancel') }}</a>
+            {% endif %}
+            {% if turnstile and kind != 'comment' %}
+                <p class="hashover-gate-note" id="{{ gate_note }}" {%- if not gated %} hidden{% endif %}>{{ t('verify.note_form') }}</p>
             {% endif %}
         </div>
     {% endif %}

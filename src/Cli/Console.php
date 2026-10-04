@@ -6,6 +6,10 @@ namespace HashOver\Cli;
 
 use HashOver\Config;
 use HashOver\Exception\ConfigException;
+use HashOver\Http\Client;
+use HashOver\Http\StreamClient;
+use HashOver\Security\Akismet;
+use HashOver\Security\Turnstile;
 use HashOver\Storage\CommentRepository;
 use HashOver\Storage\Database;
 
@@ -20,6 +24,8 @@ final readonly class Console
     /** @var resource */
     private mixed $output;
 
+    private Client $http;
+
     /**
      * @param resource|null $input
      * @param resource|null $output
@@ -28,9 +34,11 @@ final readonly class Console
         private string $root,
         mixed $input = null,
         mixed $output = null,
+        ?Client $http = null,
     ) {
         $this->input = $input ?? STDIN;
         $this->output = $output ?? STDOUT;
+        $this->http = $http ?? new StreamClient();
     }
 
     /**
@@ -150,7 +158,56 @@ final readonly class Console
             return 1;
         }
 
-        return 0;
+        return $this->checkServices($config);
+    }
+
+    /** Ask Akismet and Turnstile whether they accept the configured keys */
+    private function checkServices(Config $config): int
+    {
+        $akismet = new Akismet($config, $this->http);
+
+        if (!$akismet->isEnabled() && $config->turnstileSecretKey === '') {
+            return 0;
+        }
+
+        if (!(bool) ini_get('allow_url_fopen') && $this->http instanceof StreamClient) {
+            $this->line('Warning: Akismet and Turnstile need "allow_url_fopen" enabled in php.ini.');
+
+            return 1;
+        }
+
+        $status = 0;
+
+        if ($akismet->isEnabled()) {
+            $valid = $akismet->isValidKey('https://' . $config->allowedHosts[0] . '/');
+            $this->line(match ($valid) {
+                true => 'Akismet accepts the key.',
+                false => 'Warning: Akismet rejects "akismet_key".',
+                null => 'Warning: Akismet can\'t be reached.',
+            });
+            $status = $valid === true ? $status : 1;
+        }
+
+        if ($config->turnstileSecretKey !== '') {
+            // A made-up token is refused; the error tells whether the secret was accepted
+            $response = $this->http->postForm(Turnstile::VERIFY_URL, ['secret' => $config->turnstileSecretKey, 'response' => 'hashover-check']);
+            $result = $response?->json() ?? [];
+            $codes = is_array($result['error-codes'] ?? null) ? $result['error-codes'] : [];
+
+            if (!array_key_exists('success', $result)) {
+                $this->line('Warning: Turnstile can\'t be reached.');
+                $status = 1;
+            } elseif (in_array('invalid-input-secret', $codes, true) || in_array('missing-input-secret', $codes, true)) {
+                $this->line('Warning: Turnstile rejects "turnstile_secret_key".');
+                $status = 1;
+            } else {
+                $this->line(Turnstile::isTestSecret($config->turnstileSecretKey)
+                    ? 'Turnstile accepts the secret key (a Cloudflare test key: don\'t use it on a live site).'
+                    : 'Turnstile accepts the secret key.');
+            }
+        }
+
+        return $status;
     }
 
     private function purgeIps(): int

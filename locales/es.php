@@ -51,6 +51,11 @@ return [
     'form.delete_confirm' => 'Sí, eliminarlo',
     'form.cancel' => 'Cancelar',
 
+    'verify.hint' => 'Para publicar, dar «Me gusta» o responder, completa esta verificación de seguridad de Cloudflare Turnstile.',
+    'verify.needs_javascript' => 'La verificación de seguridad necesita JavaScript. Actívalo para publicar, dar «Me gusta» o responder.',
+    'verify.note' => 'Para dar «Me gusta» o responder, completa la verificación de seguridad en el formulario de comentarios de arriba.',
+    'verify.note_form' => 'Para enviar este formulario, completa la verificación de seguridad en el formulario de comentarios de arriba.',
+
     'comment.anonymous' => 'Anónimo',
     'comment.deleted' => 'Este comentario fue eliminado.',
     'comment.edited' => 'editado',
@@ -75,6 +80,7 @@ return [
     'message.comment_deleted' => 'El comentario se ha eliminado.',
     'message.liked' => 'Te gusta este comentario.',
     'message.unliked' => 'Ya no te gusta este comentario.',
+    'message.verified' => '¡Gracias! Ya puedes publicar, dar «Me gusta» y responder.',
     'message.logged_in' => 'Has iniciado sesión.',
     'message.logged_out' => 'Has cerrado sesión.',
 
@@ -97,12 +103,19 @@ return [
     'error.comment_too_long' => 'Tu comentario es demasiado largo. Acórtalo a {maximum} caracteres.',
     'error.own_comment' => 'No puedes dar me gusta a tu propio comentario.',
     'error.confirm_delete' => 'Confirma la eliminación.',
+    'error.spam_filter' => 'Nuestro filtro antispam marcó tu comentario, así que no se ha publicado.',
+    'error.verification_required' => 'Primero completa la verificación de seguridad en el formulario de comentarios.',
+    'error.verification_failed' => 'La verificación de seguridad ha fallado. Inténtalo de nuevo.',
+    'error.verification_unavailable' => 'La verificación de seguridad no está disponible ahora mismo. Inténtalo de nuevo en un momento.',
 
     'js.confirm_delete' => '¿Eliminar este comentario? No se puede deshacer.',
     'js.loading' => 'Cargando comentarios…',
     'js.failed' => 'Algo salió mal. Inténtalo de nuevo.',
     'js.show_image' => 'Mostrar imagen',
     'js.image' => 'Imagen publicada por quien comenta',
+    'js.verify_loading' => 'Cargando la verificación de seguridad…',
+    'js.verify_unavailable' => 'No se pudo cargar la verificación de seguridad. Vuelve a cargar la página o permite challenges.cloudflare.com si usas un bloqueador de contenido.',
+    'js.verify_failed' => 'La verificación de seguridad ha fallado. Inténtalo de nuevo o vuelve a cargar la página.',
 
     'mail.subject_new' => 'Nuevo comentario en «{page}»',
     'mail.subject_reply' => 'Nueva respuesta a tu comentario en «{page}»',

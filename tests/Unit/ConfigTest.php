@@ -22,6 +22,10 @@ final class ConfigTest extends TestCase
         self::assertFalse($config->stopForumSpam);
         self::assertSame([5, 600], $config->rateLimit('comment'));
         self::assertContains('utm_source', $config->ignoredQueryParameters);
+        self::assertSame('', $config->akismetKey);
+        self::assertSame('', $config->turnstileSiteKey);
+        self::assertSame(60, $config->turnstilePassMinutes);
+        self::assertSame([10, 600], $config->rateLimit('verify'));
     }
 
     /**
@@ -40,6 +44,9 @@ final class ConfigTest extends TestCase
         yield 'type' => [['gravatar' => 'yes'], 'gravatar'];
         yield 'range' => [['comment_rows' => 0], 'comment_rows'];
         yield 'rate limit' => [['rate_limits' => ['comment' => [5]]], 'rate_limits'];
+        yield 'turnstile site key alone' => [['turnstile_site_key' => 'site'], 'turnstile_secret_key'];
+        yield 'turnstile secret key alone' => [['turnstile_secret_key' => 'secret'], 'turnstile_site_key'];
+        yield 'turnstile pass' => [['turnstile_pass_minutes' => 0], 'turnstile_pass_minutes'];
     }
 
     /**

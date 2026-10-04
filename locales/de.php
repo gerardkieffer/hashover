@@ -51,6 +51,11 @@ return [
     'form.delete_confirm' => 'Ja, löschen',
     'form.cancel' => 'Abbrechen',
 
+    'verify.hint' => 'Um zu kommentieren, „Gefällt mir“ zu geben oder zu antworten, schließen Sie bitte diese Sicherheitsprüfung von Cloudflare Turnstile ab.',
+    'verify.needs_javascript' => 'Die Sicherheitsprüfung benötigt JavaScript. Bitte aktivieren Sie es, um zu kommentieren, „Gefällt mir“ zu geben oder zu antworten.',
+    'verify.note' => 'Um „Gefällt mir“ zu geben oder zu antworten, schließen Sie die Sicherheitsprüfung im Kommentarformular oben ab.',
+    'verify.note_form' => 'Um dieses Formular zu senden, schließen Sie die Sicherheitsprüfung im Kommentarformular oben ab.',
+
     'comment.anonymous' => 'Anonym',
     'comment.deleted' => 'Dieser Kommentar wurde gelöscht.',
     'comment.edited' => 'bearbeitet',
@@ -75,6 +80,7 @@ return [
     'message.comment_deleted' => 'Der Kommentar wurde gelöscht.',
     'message.liked' => 'Ihnen gefällt dieser Kommentar.',
     'message.unliked' => 'Ihnen gefällt dieser Kommentar nicht mehr.',
+    'message.verified' => 'Vielen Dank! Sie können jetzt kommentieren, „Gefällt mir“ geben und antworten.',
     'message.logged_in' => 'Sie sind angemeldet.',
     'message.logged_out' => 'Sie sind abgemeldet.',
 
@@ -97,12 +103,19 @@ return [
     'error.comment_too_long' => 'Ihr Kommentar ist zu lang. Bitte kürzen Sie ihn auf {maximum} Zeichen.',
     'error.own_comment' => 'Sie können Ihren eigenen Kommentar nicht mit „Gefällt mir“ markieren.',
     'error.confirm_delete' => 'Bitte bestätigen Sie das Löschen.',
+    'error.spam_filter' => 'Unser Spamfilter hat Ihren Kommentar markiert, daher wurde er nicht veröffentlicht.',
+    'error.verification_required' => 'Bitte schließen Sie zuerst die Sicherheitsprüfung im Kommentarformular ab.',
+    'error.verification_failed' => 'Die Sicherheitsprüfung ist fehlgeschlagen. Bitte versuchen Sie es noch einmal.',
+    'error.verification_unavailable' => 'Die Sicherheitsprüfung ist gerade nicht verfügbar. Bitte versuchen Sie es gleich noch einmal.',
 
     'js.confirm_delete' => 'Diesen Kommentar löschen? Das kann nicht rückgängig gemacht werden.',
     'js.loading' => 'Kommentare werden geladen…',
     'js.failed' => 'Etwas ist schiefgelaufen. Bitte versuchen Sie es noch einmal.',
     'js.show_image' => 'Bild anzeigen',
     'js.image' => 'Vom Kommentator veröffentlichtes Bild',
+    'js.verify_loading' => 'Sicherheitsprüfung wird geladen …',
+    'js.verify_unavailable' => 'Die Sicherheitsprüfung konnte nicht geladen werden. Bitte laden Sie die Seite neu oder erlauben Sie challenges.cloudflare.com, falls Sie einen Inhaltsblocker verwenden.',
+    'js.verify_failed' => 'Die Sicherheitsprüfung ist fehlgeschlagen. Bitte versuchen Sie es noch einmal oder laden Sie die Seite neu.',
 
     'mail.subject_new' => 'Neuer Kommentar zu „{page}“',
     'mail.subject_reply' => 'Neue Antwort auf Ihren Kommentar zu „{page}“',

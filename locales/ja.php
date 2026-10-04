@@ -51,6 +51,11 @@ return [
     'form.delete_confirm' => '削除する',
     'form.cancel' => 'キャンセル',
 
+    'verify.hint' => 'コメントの投稿、「いいね」、返信をするには、Cloudflare Turnstile によるこのセキュリティチェックを完了してください。',
+    'verify.needs_javascript' => 'セキュリティチェックには JavaScript が必要です。コメントの投稿、「いいね」、返信をするには JavaScript を有効にしてください。',
+    'verify.note' => '「いいね」や返信をするには、上のコメントフォームでセキュリティチェックを完了してください。',
+    'verify.note_form' => 'このフォームを送信するには、上のコメントフォームでセキュリティチェックを完了してください。',
+
     'comment.anonymous' => '匿名',
     'comment.deleted' => 'このコメントは削除されました。',
     'comment.edited' => '編集済み',
@@ -75,6 +80,7 @@ return [
     'message.comment_deleted' => 'コメントを削除しました。',
     'message.liked' => 'このコメントに「いいね」しました。',
     'message.unliked' => '「いいね」を取り消しました。',
+    'message.verified' => 'ありがとうございます。コメントの投稿、「いいね」、返信ができるようになりました。',
     'message.logged_in' => 'ログインしました。',
     'message.logged_out' => 'ログアウトしました。',
 
@@ -97,12 +103,19 @@ return [
     'error.comment_too_long' => 'コメントが長すぎます。{maximum} 文字以内にしてください。',
     'error.own_comment' => '自分のコメントには「いいね」できません。',
     'error.confirm_delete' => '削除を確認してください。',
+    'error.spam_filter' => 'スパムフィルターがコメントをスパムと判定したため、投稿されませんでした。',
+    'error.verification_required' => '先にコメントフォームでセキュリティチェックを完了してください。',
+    'error.verification_failed' => 'セキュリティチェックに失敗しました。もう一度お試しください。',
+    'error.verification_unavailable' => '現在セキュリティチェックを利用できません。しばらくしてからもう一度お試しください。',
 
     'js.confirm_delete' => 'このコメントを削除しますか？元に戻せません。',
     'js.loading' => 'コメントを読み込み中…',
     'js.failed' => '問題が発生しました。もう一度お試しください。',
     'js.show_image' => '画像を表示',
     'js.image' => 'コメント投稿者が投稿した画像',
+    'js.verify_loading' => 'セキュリティチェックを読み込んでいます…',
+    'js.verify_unavailable' => 'セキュリティチェックを読み込めませんでした。ページを再読み込みするか、コンテンツブロッカーをお使いの場合は challenges.cloudflare.com を許可してください。',
+    'js.verify_failed' => 'セキュリティチェックに失敗しました。もう一度お試しいただくか、ページを再読み込みしてください。',
 
     'mail.subject_new' => '「{page}」に新しいコメント',
     'mail.subject_reply' => '「{page}」のあなたのコメントに新しい返信',

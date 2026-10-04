@@ -26,6 +26,17 @@ the security design.
 * Removed: Identi.ca/Twitter name links, user-agent sniffing, "count_link"
   script (use data-hashover-count), HTML-file templates (use Twig).
 * bin/hashover: setup, check, hash-password, purge-ips.
+* Optional Akismet spam filter ("akismet_key"): checks new and edited
+  comments and rejects spam; accepts comments when Akismet can't answer.
+* Optional Cloudflare Turnstile bot check ("turnstile_site_key",
+  "turnstile_secret_key"): shown in the comment form; liking, replying,
+  posting and saving are grayed out, with a note, until it is completed. A
+  completed check gives a signed pass cookie bound to the visitor's address
+  for "turnstile_pass_minutes" (60 by default); the server refuses posts,
+  edits and likes without it. Needs hashover.js, and the host page's CSP
+  must allow challenges.cloudflare.com.
+* "bin/hashover check" asks Akismet and Turnstile whether they accept the
+  configured keys.
 
 
 Changes for PHP 8.4 and security hardening 2026-10-04

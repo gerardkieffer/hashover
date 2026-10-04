@@ -212,6 +212,71 @@
     opacity: 0.7;
 }
 
+/* Controls waiting for the security check (Turnstile): grayed out, but
+   still focusable so their description is announced */
+.hashover-thread [aria-disabled="true"] {
+    cursor: not-allowed;
+    opacity: 0.45;
+}
+
+@media (forced-colors: active) {
+    .hashover-thread [aria-disabled="true"] {
+        border-color: GrayText;
+        color: GrayText;
+        opacity: 1;
+    }
+}
+
+.hashover-verify {
+    margin: 0 0 0.75rem;
+}
+
+.hashover-verify .hashover-hint {
+    margin: 0 0 0.5rem;
+}
+
+/* Turnstile's widget is 65 pixels high: keep its place while it loads */
+.hashover-turnstile[data-hashover-widget] {
+    min-height: 65px;
+}
+
+.hashover-verify-status {
+    margin: 0.25rem 0 0;
+    font-size: 0.9em;
+}
+
+.hashover-verify-status:empty,
+.hashover-thread .hashover-gate-note[hidden],
+.hashover-thread .hashover-verify[hidden] {
+    display: none;
+}
+
+.hashover-gate-note {
+    display: inline-flex;
+    gap: 0.4em;
+    align-items: center;
+    margin: 0;
+    padding: 0.15em 0.65em;
+    border-radius: 0.75em;
+    color: var(--hashover-muted);
+    background: var(--hashover-surface);
+    font-size: 0.85em;
+    line-height: 1.4;
+}
+
+.hashover-gate-note::before {
+    flex: none;
+    width: 0.5em;
+    height: 0.5em;
+    border-radius: 50%;
+    background: var(--hashover-accent);
+    content: "";
+}
+
+.hashover-buttons .hashover-gate-note {
+    flex-basis: auto;
+}
+
 .hashover-logout {
     display: flex;
     flex-wrap: wrap;
