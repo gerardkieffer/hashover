@@ -112,7 +112,7 @@ HashOver uses the page's `<link rel="canonical">` (or its address) to find its c
 <script type="module" src="/hashover/hashover.js"></script>
 ```
 
-`HashOver\Embed::thread()` accepts the canonical `url` of the page, its `title` (used in e-mails and the RSS feed) and its `language`.
+`HashOver\Embed::thread()` accepts the canonical `url` of the page, its `title` and its `language`. The title is shown in the comment form's heading; the one sent with a thread's first comment is also stored and used in e-mails and the RSS feed. With JavaScript only, set `data-hashover-title` on the `div` (default: the document title).
 
 **Multilingual pages:** the interface language is `language` from the configuration, unless the page asks for another one: `Embed::thread(language: 'de')` in PHP, or `data-hashover-language="de"` on the `div` with JavaScript. Translations of one article can share a single thread by passing the same `url` from each of them, each with its own `language`. E-mails to the site owner always use the configured language.
 

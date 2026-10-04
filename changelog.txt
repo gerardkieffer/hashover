@@ -20,6 +20,9 @@ the security design.
 * Per-page interface language ("language" parameter, Embed::thread()
   argument or data-hashover-language), so translations of a page can share
   one thread.
+* The comment form's heading shows the title of the page being viewed; the
+  title stored with a thread's first comment is the fallback (and is still
+  what e-mails and the RSS feed use).
 * Removed: Identi.ca/Twitter name links, user-agent sniffing, "count_link"
   script (use data-hashover-count), HTML-file templates (use Twig).
 * bin/hashover: setup, check, hash-password, purge-ips.
