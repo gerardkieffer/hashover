@@ -24,6 +24,17 @@ final readonly class EmailCipher
         return sodium_bin2base64($nonce . sodium_crypto_secretbox($email, $nonce, $this->keys->for('email')), SODIUM_BASE64_VARIANT_ORIGINAL);
     }
 
+    /**
+     * Keyed hash of an address, to recognize it without decrypting stored
+     * addresses; null for no address
+     */
+    public function fingerprint(string $email): ?string
+    {
+        $email = strtolower(trim($email));
+
+        return $email === '' ? null : $this->keys->mac('email-fingerprint', $email);
+    }
+
     /** The decrypted address, or an empty string if it is missing or was tampered with */
     public function decrypt(?string $stored): string
     {

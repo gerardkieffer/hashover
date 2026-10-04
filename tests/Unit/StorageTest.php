@@ -28,7 +28,7 @@ final class StorageTest extends TestCase
 
     private function add(?int $parent = null): int
     {
-        return $this->comments->insert($this->threadId, $parent, ['name' => 'x', 'password_hash' => null, 'login_verifier' => null, 'email' => null, 'website' => '', 'body' => 'b', 'ip_address' => null]);
+        return $this->comments->insert($this->threadId, $parent, ['name' => 'x', 'password_hash' => null, 'login_verifier' => null, 'email' => null, 'email_hash' => null, 'website' => '', 'body' => 'b', 'notify' => true, 'ip_address' => null]);
     }
 
     public function testSchemaVersion(): void

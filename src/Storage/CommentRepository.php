@@ -34,21 +34,21 @@ final readonly class CommentRepository
     }
 
     /**
-     * @param array{name: string, password_hash: ?string, login_verifier: ?string, email: ?string, website: string, body: string, ip_address: ?string} $fields
+     * @param array{name: string, password_hash: ?string, login_verifier: ?string, email: ?string, email_hash: ?string, website: string, body: string, notify: bool, ip_address: ?string} $fields
      */
     public function insert(int $threadId, ?int $parentId, array $fields): int
     {
         $this->db->execute(
-            'INSERT INTO comments (thread_id, parent_id, name, password_hash, login_verifier, email, website, body, ip_address, created_at)
-             VALUES (:thread, :parent, :name, :password_hash, :login_verifier, :email, :website, :body, :ip_address, :now)',
-            ['thread' => $threadId, 'parent' => $parentId, 'now' => Clock::now()] + $fields,
+            'INSERT INTO comments (thread_id, parent_id, name, password_hash, login_verifier, email, email_hash, website, body, notify, ip_address, created_at)
+             VALUES (:thread, :parent, :name, :password_hash, :login_verifier, :email, :email_hash, :website, :body, :notify, :ip_address, :now)',
+            ['thread' => $threadId, 'parent' => $parentId, 'now' => Clock::now(), 'notify' => (int) $fields['notify']] + $fields,
         );
 
         return $this->db->lastInsertId();
     }
 
     /**
-     * @param array{name?: string, email?: ?string, website?: string, body?: string, notify?: bool} $fields
+     * @param array{name?: string, email?: ?string, email_hash?: ?string, website?: string, body?: string, notify?: bool} $fields
      */
     public function update(int $id, array $fields): void
     {
@@ -79,7 +79,7 @@ final readonly class CommentRepository
 
             if ($this->hasReplies($id)) {
                 $this->db->execute(
-                    "UPDATE comments SET deleted = 1, name = '', password_hash = NULL, login_verifier = NULL, email = NULL,
+                    "UPDATE comments SET deleted = 1, name = '', password_hash = NULL, login_verifier = NULL, email = NULL, email_hash = NULL,
                      website = '', body = '', ip_address = NULL, notify = 0, updated_at = :now WHERE id = :id",
                     ['id' => $id, 'now' => Clock::now()],
                 );

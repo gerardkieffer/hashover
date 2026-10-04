@@ -87,6 +87,12 @@ final class RequestSecurityTest extends ApplicationTestCase
         $this->boot(['blocked_ips' => ['192.0.2.1']]);
 
         self::assertSame(403, $this->browser()->comment(['body' => 'x'], json: true)->status);
+
+        // Without JavaScript, the message is shown as text rather than JSON
+        $response = $this->browser()->comment(['body' => 'x']);
+        self::assertSame(403, $response->status);
+        self::assertStringStartsWith('text/plain', (string) $response->header('Content-Type'));
+        self::assertSame('Sorry, you can’t post comments.', $response->body);
         self::assertSame(0, $this->commentCount());
     }
 

@@ -38,6 +38,11 @@ final class Embed
             error_log('HashOver: ' . $error->key . ' for ' . ($url ?? 'the current page'));
 
             return '';
+        } catch (\Throwable $error) {
+            // Never break the page that includes the comments
+            error_log('HashOver: ' . $error);
+
+            return '';
         }
     }
 

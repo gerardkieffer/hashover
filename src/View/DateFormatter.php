@@ -12,12 +12,17 @@ final readonly class DateFormatter
 {
     private \DateTimeZone $timezone;
 
+    private ?\IntlDateFormatter $intl;
+
     public function __construct(
         private Translator $translator,
         string $timezone,
         private bool $relative,
     ) {
         $this->timezone = new \DateTimeZone($timezone);
+        $this->intl = class_exists(\IntlDateFormatter::class)
+            ? new \IntlDateFormatter($translator->language, \IntlDateFormatter::LONG, \IntlDateFormatter::SHORT, $this->timezone)
+            : null;
     }
 
     /** Text shown for a date */
@@ -45,13 +50,10 @@ final readonly class DateFormatter
     {
         $local = $date->setTimezone($this->timezone);
 
-        if (class_exists(\IntlDateFormatter::class)) {
-            $formatter = new \IntlDateFormatter($this->translator->language, \IntlDateFormatter::LONG, \IntlDateFormatter::SHORT, $this->timezone);
-            $formatted = $formatter->format($local);
+        $formatted = $this->intl?->format($local);
 
-            if (is_string($formatted)) {
-                return $formatted;
-            }
+        if (is_string($formatted)) {
+            return $formatted;
         }
 
         return $local->format('Y-m-d H:i');

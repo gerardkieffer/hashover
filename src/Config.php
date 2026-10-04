@@ -70,11 +70,11 @@ final readonly class Config
     /**
      * Path of the configuration file: $HASHOVER_CONFIG, or config/config.php
      */
-    public static function defaultFile(): string
+    public static function defaultFile(?string $root = null): string
     {
         $file = getenv('HASHOVER_CONFIG');
 
-        return is_string($file) && $file !== '' ? $file : dirname(__DIR__) . '/config/config.php';
+        return is_string($file) && $file !== '' ? $file : ($root ?? dirname(__DIR__)) . '/config/config.php';
     }
 
     /**
@@ -200,6 +200,26 @@ final readonly class Config
             sourceCodeUrl: $reader->string('source_code_url', 'https://github.com/gerardkieffer/hashover'),
             forceSecureCookies: $reader->bool('force_secure_cookies', false),
         );
+    }
+
+    /** "host" or "host:port" of a URL, lower-cased; null if it has no host */
+    public static function hostOf(string $url): ?string
+    {
+        $parts = parse_url($url);
+
+        if (!is_array($parts) || !isset($parts['host'])) {
+            return null;
+        }
+
+        return strtolower($parts['host']) . (isset($parts['port']) ? ':' . $parts['port'] : '');
+    }
+
+    /** Whether a URL points to one of the website's host names */
+    public function allowsUrl(string $url): bool
+    {
+        $host = self::hostOf($url);
+
+        return $host !== null && in_array($host, $this->allowedHosts, true);
     }
 
     public function databaseFile(): string

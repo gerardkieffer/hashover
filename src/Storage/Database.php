@@ -31,6 +31,7 @@ final class Database
                 password_hash TEXT,
                 login_verifier TEXT,
                 email TEXT,
+                email_hash TEXT,
                 website TEXT NOT NULL DEFAULT '',
                 body TEXT NOT NULL,
                 likes INTEGER NOT NULL DEFAULT 0,

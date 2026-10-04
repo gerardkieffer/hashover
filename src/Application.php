@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace HashOver;
 
 use HashOver\Content\Formatter;
+use HashOver\Content\Website;
 use HashOver\Exception\UserError;
 use HashOver\Http\Cookie;
 use HashOver\Http\Request;
@@ -13,7 +14,6 @@ use HashOver\Mail\Mailer;
 use HashOver\Mail\Notifier;
 use HashOver\Mail\PhpMailer;
 use HashOver\Model\Comment;
-use HashOver\Model\Thread;
 use HashOver\Page\Page;
 use HashOver\Security\Auth;
 use HashOver\Security\EmailCipher;
@@ -215,26 +215,26 @@ final readonly class Application
             }
         }
 
-        $thread = $this->threads->findOrCreate($page, $this->singleLine($request->post('title'), 200));
-        $parent = $this->parent($request->post('parent'), $thread);
+        // Validate everything before the thread is created by the first comment
+        $parent = $this->parent($request->post('parent'), $page);
 
         if ($this->visitor->isKnownSpammer($request)) {
             throw new UserError('error.blocked', 403);
         }
+
+        $thread = $this->threads->findOrCreate($page, $this->singleLine($request->post('title'), 200));
 
         $id = $this->comments->insert($thread->id, $parent?->id, [
             'name' => $name,
             'password_hash' => $password !== '' ? password_hash($password, PASSWORD_DEFAULT) : null,
             'login_verifier' => $password !== '' ? $this->auth->loginVerifier($this->auth->loginToken($name, $password)) : null,
             'email' => $this->cipher->encrypt($email),
+            'email_hash' => $this->cipher->fingerprint($email),
             'website' => $website,
             'body' => $body,
+            'notify' => $request->hasPost('notify'),
             'ip_address' => $this->config->storeIpAddresses && $request->ip() !== '' ? $request->ip() : null,
         ]);
-
-        if (!$request->hasPost('notify')) {
-            $this->comments->update($id, ['notify' => false]);
-        }
 
         if ($this->config->storeIpAddresses) {
             $this->comments->purgeIpAddresses($this->config->ipRetentionDays);
@@ -273,7 +273,9 @@ final readonly class Application
 
         // The administrator edits the text, never the author's e-mail address
         if (!$actingAdmin || $this->auth->ownsComment($request, $comment)) {
-            $fields['email'] = $this->cipher->encrypt($this->email($request->post('email')));
+            $email = $this->email($request->post('email'));
+            $fields['email'] = $this->cipher->encrypt($email);
+            $fields['email_hash'] = $this->cipher->fingerprint($email);
         }
 
         $this->comments->update($comment->id, $fields);
@@ -302,10 +304,9 @@ final readonly class Application
     private function like(Request $request, Page $page): Response
     {
         $comment = $this->findComment($request->post('id'), $page);
-        $authorEmail = $this->authorCookieValues($request)['email'];
+        $authorEmail = $this->cipher->fingerprint($this->authorCookieValues($request)['email']);
 
-        if ($this->auth->ownsComment($request, $comment)
-            || ($authorEmail !== '' && strcasecmp($authorEmail, $this->cipher->decrypt($comment->email)) === 0)) {
+        if ($this->auth->ownsComment($request, $comment) || $this->sameEmail($authorEmail, $comment)) {
             throw new UserError('error.own_comment', 403);
         }
 
@@ -372,10 +373,11 @@ final readonly class Application
         $isAdmin = $this->auth->isAdmin($request);
         $liked = $thread === null ? [] : $this->comments->likedBy($thread->id, $this->visitor->id($request));
         $author = $this->authorCookieValues($request);
+        $authorEmail = $this->cipher->fingerprint($author['email']);
 
-        $makeNode = function (Comment $comment, ?Comment $parent) use ($request, $isAdmin, $liked, $author): CommentNode {
+        $makeNode = function (Comment $comment, ?Comment $parent) use ($request, $isAdmin, $liked, $authorEmail): CommentNode {
             $owns = $this->auth->ownsComment($request, $comment);
-            $sameEmail = $author['email'] !== '' && strcasecmp($author['email'], $this->cipher->decrypt($comment->email)) === 0;
+            $sameEmail = $this->sameEmail($authorEmail, $comment);
 
             return new CommentNode(
                 comment: $comment,
@@ -471,10 +473,13 @@ final readonly class Application
     {
         $text = $this->translator->translate($error->key, $error->parameters);
 
-        if ($request->wantsJson() || $page === null) {
-            return $request->isPost() || $request->wantsJson()
-                ? Response::json(['ok' => false, 'message' => $text, 'field' => $error->field], $error->status)
-                : Response::text($text, $error->status);
+        if ($request->wantsJson()) {
+            return Response::json(['ok' => false, 'message' => $text, 'field' => $error->field], $error->status);
+        }
+
+        // Without a known page to return to, show the message itself
+        if ($page === null) {
+            return Response::text($text, $error->status);
         }
 
         $parameters = ['hashover_message' => $error->key];
@@ -505,15 +510,13 @@ final readonly class Application
             return $source === '';
         }
 
-        $parts = parse_url($source);
+        return $this->config->allowsUrl($source);
+    }
 
-        if (!is_array($parts) || !isset($parts['host'])) {
-            return false;
-        }
-
-        $host = strtolower($parts['host']) . (isset($parts['port']) ? ':' . $parts['port'] : '');
-
-        return in_array($host, $this->config->allowedHosts, true);
+    /** Whether a comment was written with the e-mail address of the given fingerprint */
+    private function sameEmail(?string $fingerprint, Comment $comment): bool
+    {
+        return $fingerprint !== null && $comment->emailHash !== null && hash_equals($comment->emailHash, $fingerprint);
     }
 
     /** A comment of this page the visitor may edit or delete */
@@ -550,15 +553,16 @@ final readonly class Application
         return $comment;
     }
 
-    private function parent(string $id, Thread $thread): ?Comment
+    private function parent(string $id, Page $page): ?Comment
     {
         if ($id === '') {
             return null;
         }
 
+        $thread = $this->threads->find($page);
         $parent = ctype_digit($id) ? $this->comments->find((int) $id) : null;
 
-        if ($parent === null || $parent->threadId !== $thread->id || $parent->deleted) {
+        if ($thread === null || $parent === null || $parent->threadId !== $thread->id || $parent->deleted) {
             throw new UserError('error.not_found', 404);
         }
 
@@ -585,23 +589,7 @@ final readonly class Application
 
     private function website(string $value): string
     {
-        $value = trim($value);
-
-        if ($value === '') {
-            return '';
-        }
-
-        if (preg_match('~^[a-z][a-z0-9+.-]*:~i', $value) !== 1) {
-            $value = 'https://' . $value;
-        }
-
-        $scheme = strtolower((string) parse_url($value, PHP_URL_SCHEME));
-
-        if (filter_var($value, FILTER_VALIDATE_URL) === false || !in_array($scheme, ['http', 'https'], true) || strlen($value) > 500) {
-            throw new UserError('error.invalid_website', 400, 'website');
-        }
-
-        return $value;
+        return Website::normalize($value) ?? throw new UserError('error.invalid_website', 400, 'website');
     }
 
     private function body(string $value): string
@@ -648,7 +636,7 @@ final readonly class Application
         return [
             'name' => mb_substr($string('name'), 0, $this->config->maxNameLength),
             'email' => filter_var($email, FILTER_VALIDATE_EMAIL) !== false ? $email : '',
-            'website' => preg_match('~^https?://~i', $website) === 1 && filter_var($website, FILTER_VALIDATE_URL) !== false ? $website : '',
+            'website' => Website::normalize($website) ?? '',
         ];
     }
 }

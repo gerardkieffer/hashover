@@ -175,9 +175,7 @@ final readonly class Console
 
     private function configFile(): string
     {
-        $file = getenv('HASHOVER_CONFIG');
-
-        return is_string($file) && $file !== '' ? $file : $this->root . '/config/config.php';
+        return Config::defaultFile($this->root);
     }
 
     private function ask(string $question): string

@@ -50,6 +50,33 @@ final class PostingTest extends ApplicationTestCase
         self::assertStringContainsString('id="hashover-c1"', $data['html']);
     }
 
+    public function testUnsubscribedNewCommentIsNotMarkedEdited(): void
+    {
+        $browser = $this->browser();
+        $browser->comment(['body' => 'no notifications please']);
+
+        $comment = $this->comment(1);
+        self::assertNotNull($comment);
+        self::assertFalse($comment->notify);
+        self::assertNull($comment->updatedAt);
+        self::assertStringNotContainsString('hashover-edited', $browser->thread()->body);
+    }
+
+    public function testRejectedRepliesDontCreateThreads(): void
+    {
+        $this->browser()->comment(['body' => 'x', 'parent' => '1'], json: true);
+
+        self::assertSame(0, $this->database->int('SELECT COUNT(*) FROM threads'));
+    }
+
+    public function testQueryParametersAreKeptAsWritten(): void
+    {
+        $response = $this->browser()->post(['action' => 'comment', 'body' => 'x'], url: 'https://example.com/view?doc.id=5&a%20b=1');
+
+        self::assertSame('/view?a%20b=1&doc.id=5', $this->database->value('SELECT page_key FROM threads'));
+        self::assertStringStartsWith('https://example.com/view?a%20b=1&doc.id=5&hashover_message=', (string) $response->header('Location'));
+    }
+
     public function testAnonymousCommentWithoutPasswordGetsNoLogin(): void
     {
         $browser = $this->browser();

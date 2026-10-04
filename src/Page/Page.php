@@ -27,25 +27,24 @@ final readonly class Page
      */
     public static function fromUrl(string $url, Config $config): self
     {
-        $parts = parse_url(trim($url));
+        $url = trim($url);
+        $parts = parse_url($url);
 
         if (!is_array($parts) || !isset($parts['scheme'], $parts['host'])
             || !in_array(strtolower($parts['scheme']), ['http', 'https'], true)) {
             throw new UserError('error.invalid_page', 400);
         }
 
-        $host = strtolower($parts['host']) . (isset($parts['port']) ? ':' . $parts['port'] : '');
+        $host = Config::hostOf($url);
 
-        if (!in_array($host, $config->allowedHosts, true)) {
+        if ($host === null || !$config->allowsUrl($url)) {
             throw new UserError('error.invalid_page', 403);
         }
 
         $path = $parts['path'] ?? '/';
         $path = $path === '' ? '/' : $path;
 
-        parse_str($parts['query'] ?? '', $query);
-        $query = self::significantQuery($query, $config->ignoredQueryParameters);
-        $queryString = http_build_query($query, '', '&', PHP_QUERY_RFC3986);
+        $queryString = self::significantQuery($parts['query'] ?? '', $config->ignoredQueryParameters);
 
         $key = $path . ($queryString !== '' ? '?' . $queryString : '');
 
@@ -72,22 +71,28 @@ final readonly class Page
     }
 
     /**
-     * Drop HashOver's own and ignored parameters; sort the rest
+     * Drop HashOver's own and ignored parameters and sort the rest, keeping
+     * the parameters exactly as written (parse_str() would rename some)
      *
-     * @param array<mixed> $query
      * @param list<string> $ignored
-     * @return array<mixed>
      */
-    private static function significantQuery(array $query, array $ignored): array
+    private static function significantQuery(string $query, array $ignored): string
     {
-        foreach (array_keys($query) as $name) {
-            if (str_starts_with((string) $name, 'hashover_') || in_array((string) $name, $ignored, true)) {
-                unset($query[$name]);
+        $kept = [];
+
+        foreach (explode('&', $query) as $parameter) {
+            $name = urldecode(explode('=', $parameter, 2)[0]);
+
+            if ($parameter === '' || str_starts_with($name, 'hashover_') || in_array($name, $ignored, true)) {
+                continue;
             }
+
+            $kept[] = $parameter;
         }
 
-        ksort($query, SORT_STRING);
+        // Sort by name only, keeping the order of repeated parameters
+        usort($kept, static fn(string $a, string $b): int => strcmp(explode('=', $a, 2)[0], explode('=', $b, 2)[0]));
 
-        return $query;
+        return implode('&', $kept);
     }
 }
